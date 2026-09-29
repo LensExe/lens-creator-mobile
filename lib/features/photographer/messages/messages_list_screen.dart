@@ -1,149 +1,114 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
-class MessagesListScreen extends StatelessWidget {
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import 'conversation_provider.dart';
+
+class MessagesListScreen extends ConsumerStatefulWidget {
   const MessagesListScreen({super.key});
 
   @override
+  ConsumerState<MessagesListScreen> createState() => _MessagesListScreenState();
+}
+
+class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
+  bool unreadOnly = false;
+  String search = '';
+
+  @override
   Widget build(BuildContext context) {
-    // Mock data
-    final conversations = [
-      {
-        'id': 'conv-1',
-        'participantName': 'Nguyễn Văn A',
-        'participantAvatar': 'https://i.pravatar.cc/150?img=11',
-        'lastMessage': 'Cảm ơn bạn, mình nhận được ảnh rồi nhé!',
-        'lastMessageAt': 'Vừa xong',
-        'unreadCount': 2,
-      },
-      {
-        'id': 'conv-2',
-        'participantName': 'Trần Thị B',
-        'participantAvatar': 'https://i.pravatar.cc/150?img=5',
-        'lastMessage': 'Gói chụp này có hỗ trợ trang phục không?',
-        'lastMessageAt': '5 phút trước',
-        'unreadCount': 1,
-      },
-      {
-        'id': 'conv-3',
-        'participantName': 'Lê Hoàng C',
-        'participantAvatar': 'https://i.pravatar.cc/150?img=33',
-        'lastMessage': 'Ok chốt lịch 9h sáng chủ nhật nha.',
-        'lastMessageAt': 'Hôm qua',
-        'unreadCount': 0,
-      },
-    ];
-
+    final conversations = ref.watch(conversationsProvider);
+    final unread = conversations
+        .where((conversation) => conversation.unreadCount > 0)
+        .length;
+    final filtered = conversations.where((conversation) {
+      if (unreadOnly && conversation.unreadCount == 0) return false;
+      final query = search.trim().toLowerCase();
+      return query.isEmpty ||
+          '${conversation.participantName} ${conversation.messages.lastOrNull?.text ?? ''}'
+              .toLowerCase()
+              .contains(query);
+    }).toList();
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        backgroundColor: AppColors.snow,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Tin nhắn',
-          style: TextStyle(
-            color: AppColors.obsidian,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+      appBar: AppBar(title: const Text('Tin nhắn')),
+      body: ListView(
+        padding: AppTokens.pagePadding,
+        children: [
+          TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Tìm theo tên hoặc nội dung',
+            ),
+            onChanged: (value) => setState(() => search = value),
           ),
-        ),
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: conversations.length,
-        itemBuilder: (context, index) {
-          final conv = conversations[index];
-          final unread = conv['unreadCount'] as int;
-          final isUnread = unread > 0;
-
-          return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Tất cả'),
+                selected: !unreadOnly,
+                onSelected: (_) => setState(() => unreadOnly = false),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Chưa đọc ($unread)'),
+                selected: unreadOnly,
+                onSelected: (_) => setState(() => unreadOnly = true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (filtered.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  search.isNotEmpty
+                      ? 'Không tìm thấy cuộc trò chuyện phù hợp'
+                      : 'Bạn đã đọc hết tin nhắn',
                 ),
+              ),
+            ),
+          for (final conversation in filtered)
+            Card(
+              child: ListTile(
                 leading: CircleAvatar(
-                  radius: 26,
-                  backgroundImage: NetworkImage(
-                    conv['participantAvatar'] as String,
+                  backgroundColor: AppColors.mist,
+                  child: Text(
+                    conversation.participantName.characters.first,
+                    style: const TextStyle(color: AppColors.obsidian),
                   ),
                 ),
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        conv['participantName'] as String,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.obsidian,
-                          fontSize: 16,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      conv['lastMessageAt'] as String,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isUnread ? AppColors.ember : AppColors.steel,
-                        fontWeight: isUnread
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ],
+                title: Text(
+                  conversation.participantName,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Expanded(
+                subtitle: Text(
+                  conversation.messages.lastOrNull?.text ?? 'Chưa có tin nhắn',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: conversation.unreadCount > 0
+                    ? CircleAvatar(
+                        radius: 12,
+                        backgroundColor: AppColors.ember,
                         child: Text(
-                          conv['lastMessage'] as String,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isUnread
-                                ? AppColors.obsidian
-                                : AppColors.steel,
-                            fontWeight: isUnread
-                                ? FontWeight.w500
-                                : FontWeight.normal,
-                            fontSize: 14,
+                          '${conversation.unreadCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
                           ),
                         ),
-                      ),
-                      if (isUnread)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.ember,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            unread.toString(),
-                            style: const TextStyle(
-                              color: AppColors.snow,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                      )
+                    : null,
+                onTap: () => context.push(
+                  '/photographer_home/messages/${conversation.id}',
                 ),
-                onTap: () {
-                  context.push('/photographer_home/messages/${conv['id']}');
-                },
-              )
-              .animate()
-              .fade(duration: 300.ms, delay: (index * 50).ms)
-              .slideX(begin: 0.1, end: 0);
-        },
+              ),
+            ),
+        ],
       ),
     );
   }

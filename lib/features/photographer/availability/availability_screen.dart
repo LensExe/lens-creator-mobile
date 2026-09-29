@@ -1,271 +1,293 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:lens_creator_mobile/core/widgets/surface_card.dart';
-import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:lens_creator_mobile/features/photographer/achievements/widgets/dashed_rect_painter.dart';
 
-class AvailabilityScreen extends StatefulWidget {
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../providers/data_providers.dart';
+import 'schedule_provider.dart';
+import 'work_schedule.dart';
+
+class AvailabilityScreen extends ConsumerStatefulWidget {
   const AvailabilityScreen({super.key});
 
   @override
-  State<AvailabilityScreen> createState() => _AvailabilityScreenState();
+  ConsumerState<AvailabilityScreen> createState() => _AvailabilityScreenState();
 }
 
-class _AvailabilityScreenState extends State<AvailabilityScreen> {
-  // Mock data of ISO date strings (yyyy-MM-dd)
-  List<String> upcomingDates = [];
+class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
+  WorkSchedule? draft;
+  DateTime selected = DateUtils.dateOnly(
+    DateTime.now().add(const Duration(days: 1)),
+  );
+  bool dirty = false;
+  int selectedWeekday = 1;
 
-  DateTime _focusedDay = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    // Add some mock dates based on today
-    final today = DateTime.now();
-    upcomingDates = [
-      DateFormat('yyyy-MM-dd').format(today.add(const Duration(days: 1))),
-      DateFormat('yyyy-MM-dd').format(today.add(const Duration(days: 3))),
-      DateFormat('yyyy-MM-dd').format(today.add(const Duration(days: 15))),
-    ];
+  void _edit(void Function(WorkSchedule) change) {
+    final current = draft;
+    final next = current == null
+        ? ref.read(scheduleProvider).copy()
+        : current.copy();
+    change(next);
+    setState(() {
+      draft = next;
+      dirty = true;
+    });
   }
 
-  void _toggleAvailability(DateTime date) {
-    // Only allow future or today dates (ignoring time)
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-    final selectedDate = DateTime(date.year, date.month, date.day);
+  Future<bool> _confirmDiscard() async {
+    if (!dirty) return true;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Bỏ thay đổi lịch?'),
+            content: const Text('Các khung giờ chưa lưu sẽ bị huỷ.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Tiếp tục sửa'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Bỏ thay đổi'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
 
-    if (selectedDate.isBefore(todayDate)) return;
-
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-    setState(() {
-      if (upcomingDates.contains(dateStr)) {
-        upcomingDates.remove(dateStr);
-      } else {
-        upcomingDates.add(dateStr);
-      }
-      upcomingDates.sort(); // Keep them ordered chronologically
-    });
+  Future<void> _pickDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final date = await showDatePicker(
+      context: context,
+      initialDate: selected,
+      firstDate: today.add(const Duration(days: 1)),
+      lastDate: today.add(const Duration(days: 35)),
+      locale: const Locale('vi', 'VN'),
+    );
+    if (date != null) setState(() => selected = date);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        backgroundColor: AppColors.mist,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.obsidian),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final saved = ref.watch(scheduleProvider);
+    final schedule = draft ?? saved;
+    final bookings = ref.watch(myBookingsProvider);
+    final key = WorkSchedule.iso(selected);
+    final busy = schedule.busy[key] ?? <String>{};
+    final booked = [
+      for (final slot in WorkSchedule.slots)
+        if (bookings.any((booking) => schedule.isBooked(booking, key, slot)))
+          slot,
+    ];
+    final dayWorking = schedule.weekly[selected.weekday % 7];
+    return PopScope(
+      canPop: !dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop && await _confirmDiscard() && context.mounted) {
+          setState(() {
+            draft = null;
+            dirty = false;
+          });
+          context.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Lịch làm việc')),
+        body: ListView(
+          padding: AppTokens.pagePadding,
           children: [
             const Text(
-              'Lịch trống',
-              style: TextStyle(
-                color: AppColors.obsidian,
-                fontWeight: FontWeight.bold,
-                fontSize: 32,
-              ),
+              'Khách có thể bắt đầu từ 07:00 đến trước 24:00. Lịch đã đặt được khóa.',
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Chọn những ngày bạn sẵn sàng nhận lịch chụp. Khách hàng sẽ chỉ đặt được vào các ngày này.',
-              style: TextStyle(color: AppColors.steel, fontSize: 15),
-            ),
-            const SizedBox(height: 32),
-
-            // Calendar View
-            SurfaceCard(
-              child: TableCalendar(
-                firstDay: DateTime.now(),
-                lastDay: DateTime.now().add(
-                  const Duration(days: 730),
-                ), // 2 years
-                focusedDay: _focusedDay,
-                currentDay: DateTime.now(),
-                headerStyle: const HeaderStyle(
-                  formatButtonVisible: false,
-                  titleCentered: true,
-                  titleTextStyle: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.obsidian,
-                  ),
-                  leftChevronIcon: Icon(
-                    Icons.chevron_left,
-                    color: AppColors.obsidian,
-                  ),
-                  rightChevronIcon: Icon(
-                    Icons.chevron_right,
-                    color: AppColors.obsidian,
-                  ),
-                ),
-                daysOfWeekStyle: const DaysOfWeekStyle(
-                  weekdayStyle: TextStyle(
-                    color: AppColors.steel,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  weekendStyle: TextStyle(
-                    color: AppColors.steel,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                calendarStyle: const CalendarStyle(
-                  todayDecoration: BoxDecoration(
-                    color: AppColors.pebble,
-                    shape: BoxShape.circle,
-                  ),
-                  todayTextStyle: TextStyle(
-                    color: AppColors.obsidian,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  selectedDecoration: BoxDecoration(
-                    color: AppColors.obsidian,
-                    shape: BoxShape.circle,
-                  ),
-                  selectedTextStyle: TextStyle(
-                    color: AppColors.snow,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  disabledTextStyle: TextStyle(color: AppColors.fog),
-                  defaultTextStyle: TextStyle(
-                    color: AppColors.obsidian,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  weekendTextStyle: TextStyle(
-                    color: AppColors.obsidian,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                selectedDayPredicate: (day) {
-                  final dateStr = DateFormat('yyyy-MM-dd').format(day);
-                  return upcomingDates.contains(dateStr);
-                },
-                onDaySelected: (selectedDay, focusedDay) {
-                  setState(() {
-                    _focusedDay = focusedDay;
-                  });
-                  _toggleAvailability(selectedDay);
-                },
-              ),
-            ).animate().fade().slideY(begin: 0.1),
-
-            const SizedBox(height: 32),
-
-            // Upcoming Free Days
-            Row(
-              children: [
-                const Icon(Icons.edit_calendar, color: AppColors.obsidian),
-                const SizedBox(width: 8),
-                Text(
-                  'Ngày rảnh sắp tới (${upcomingDates.length})',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.obsidian,
-                  ),
-                ),
-              ],
-            ).animate().fade(delay: 200.ms),
             const SizedBox(height: 16),
-
-            if (upcomingDates.isEmpty)
-              _buildEmptyState().animate().fade(delay: 300.ms)
-            else
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: upcomingDates.map((dateStr) {
-                  final date = DateTime.parse(dateStr);
-                  final displayDate = DateFormat('dd/MM/yyyy').format(date);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lịch định kỳ',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.snow,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.pebble),
+                    const Text(
+                      'Chạm ngày để đóng hoặc mở toàn bộ khung giờ. Thay đổi chỉ lưu khi bạn bấm Lưu lịch.',
+                      style: TextStyle(color: AppColors.steel, fontSize: 12),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      for (final preset in const [
+                        ('Cả tuần', [0, 1, 2, 3, 4, 5, 6]),
+                        ('Ngày thường', [1, 2, 3, 4, 5]),
+                        ('Cuối tuần', [0, 6]),
+                        ('Xoá hết', <int>[]),
+                      ]) ActionChip(label: Text(preset.$1), onPressed: () => _edit((next) {
+                        for (var day = 0; day < 7; day++) {
+                          next.weekly[day] = preset.$2.contains(day)
+                              ? {...WorkSchedule.slots} : <String>{};
+                        }
+                      })),
+                    ]),
+                    const SizedBox(height: 12),
+                    for (final (index, label) in const [
+                      'CN',
+                      'T2',
+                      'T3',
+                      'T4',
+                      'T5',
+                      'T6',
+                      'T7',
+                    ].indexed)
+                      SwitchListTile(
+                        dense: true,
+                        title: Text(label),
+                        subtitle: Text(
+                          schedule.weekly[index].isEmpty
+                              ? 'Nghỉ'
+                              : '${schedule.weekly[index].length} khung 30 phút',
+                        ),
+                        value: schedule.weekly[index].isNotEmpty,
+                        onChanged: (value) => _edit(
+                          (next) => next.weekly[index] = value
+                              ? {...WorkSchedule.slots}
+                              : <String>{},
+                        ),
+                      ),
+                    const Divider(),
+                    Text('Khung giờ định kỳ', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      for (final (index, label) in const ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].indexed)
+                        ChoiceChip(label: Text(label), selected: selectedWeekday == index,
+                            onSelected: (_) => setState(() => selectedWeekday = index)),
+                    ]),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      for (final slot in WorkSchedule.slots) FilterChip(
+                        label: Text(slot),
+                        selected: schedule.weekly[selectedWeekday].contains(slot),
+                        onSelected: (_) => _edit((next) {
+                          final cells = next.weekly[selectedWeekday];
+                          if (!cells.add(slot)) cells.remove(slot);
+                        }),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ngoại lệ theo ngày',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon: const Icon(Icons.calendar_today_outlined),
+                      label: Text(
+                        DateFormat(
+                          'EEEE, dd/MM/yyyy',
+                          'vi_VN',
+                        ).format(selected),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${booked.length} khung đã có khách · ${busy.length} khung bận',
+                      style: const TextStyle(color: AppColors.steel),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      title: const Text('Bận cả ngày'),
+                      value:
+                          dayWorking.isNotEmpty && busy.containsAll(dayWorking),
+                      onChanged: dayWorking.isEmpty
+                          ? null
+                          : (value) => _edit((next) {
+                              if (value) {
+                                next.busy[key] = {...dayWorking};
+                              } else {
+                                next.busy.remove(key);
+                              }
+                            }),
+                    ),
+                    const Text(
+                      'Chạm một khung để đánh dấu bận. Lịch khách đã đặt không thể sửa.',
+                      style: TextStyle(color: AppColors.steel, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
-                        Text(
-                          displayDate,
-                          style: const TextStyle(
-                            color: AppColors.obsidian,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _toggleAvailability(date),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: AppColors.mist,
-                              shape: BoxShape.circle,
+                        for (final slot in WorkSchedule.slots)
+                          if (dayWorking.contains(slot))
+                            FilterChip(
+                              label: Text(slot),
+                              selected:
+                                  busy.contains(slot) || booked.contains(slot),
+                              onSelected: booked.contains(slot)
+                                  ? null
+                                  : (_) => _edit((next) {
+                                      final cells = next.busy.putIfAbsent(
+                                        key,
+                                        () => <String>{},
+                                      );
+                                      if (!cells.add(slot)) cells.remove(slot);
+                                      if (cells.isEmpty) next.busy.remove(key);
+                                    }),
+                              selectedColor: booked.contains(slot)
+                                  ? AppColors.fog
+                                  : const Color(0xFFFEF3C7),
                             ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: AppColors.steel,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
-                  );
-                }).toList(),
-              ).animate().fade(delay: 300.ms),
-
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return CustomPaint(
-      painter: DashedRectPainter(
-        color: AppColors.steel,
-        strokeWidth: 1.5,
-        gap: 5,
-        radius: 20,
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          children: const [
-            Icon(Icons.event_busy, color: AppColors.steel, size: 48),
-            SizedBox(height: 16),
-            Text(
-              'Bạn chưa chọn ngày trống nào.\nHãy chọn trên lịch.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.steel,
-                fontSize: 14,
-                height: 1.5,
+                  ],
+                ),
               ),
             ),
+            const SizedBox(height: 16),
+            if (dirty)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => setState(() {
+                        draft = null;
+                        dirty = false;
+                      }),
+                      child: const Text('Bỏ thay đổi'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        ref.read(scheduleProvider.notifier).save(schedule);
+                        setState(() {
+                          draft = null;
+                          dirty = false;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã lưu lịch làm việc')),
+                        );
+                      },
+                      child: const Text('Lưu lịch'),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

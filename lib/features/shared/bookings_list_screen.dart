@@ -172,6 +172,8 @@ class BookingsListScreen extends ConsumerWidget {
 
   String _getStatusText(BookingStatus status) {
     switch (status) {
+      case BookingStatus.awaitingDeposit:
+        return 'Chờ đặt cọc';
       case BookingStatus.pending:
         return 'Đang chờ';
       case BookingStatus.confirmed:
@@ -187,6 +189,8 @@ class BookingsListScreen extends ConsumerWidget {
 
   Color _getStatusColor(BookingStatus status) {
     switch (status) {
+      case BookingStatus.awaitingDeposit:
+        return Colors.orange;
       case BookingStatus.pending:
         return Colors.amber;
       case BookingStatus.confirmed:

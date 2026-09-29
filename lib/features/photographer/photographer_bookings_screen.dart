@@ -1,205 +1,276 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:lens_creator_mobile/core/widgets/surface_card.dart';
-import 'package:lens_creator_mobile/core/widgets/lens_badge.dart';
 
-class PhotographerBookingsScreen extends StatelessWidget {
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../domain/models/models.dart';
+import '../../providers/data_providers.dart';
+import 'bookings/widgets/studio_booking_card.dart';
+import 'bookings/widgets/collaboration_invites.dart';
+
+enum _BookingGroup { pending, active, done, cancelled }
+
+enum _DateScope { all, upcoming, past }
+
+class PhotographerBookingsScreen extends ConsumerStatefulWidget {
   const PhotographerBookingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 5,
-      child: Scaffold(
-        backgroundColor: AppColors.mist,
-        appBar: AppBar(
-          backgroundColor: AppColors.snow,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          title: const Text(
-            'Lịch đặt',
-            style: TextStyle(
-              color: AppColors.obsidian,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
+  ConsumerState<PhotographerBookingsScreen> createState() =>
+      _PhotographerBookingsScreenState();
+}
+
+class _PhotographerBookingsScreenState
+    extends ConsumerState<PhotographerBookingsScreen> {
+  _BookingGroup group = _BookingGroup.pending;
+  _DateScope scope = _DateScope.all;
+  String query = '';
+  String? decidingId;
+
+  bool _inGroup(Booking booking) => switch (group) {
+    _BookingGroup.pending => booking.status == BookingStatus.pending,
+    _BookingGroup.active =>
+      booking.status == BookingStatus.confirmed ||
+          booking.status == BookingStatus.held,
+    _BookingGroup.done => booking.status == BookingStatus.released,
+    _BookingGroup.cancelled => booking.status == BookingStatus.cancelled,
+  };
+
+  Future<void> _decide(Booking booking, BookingStatus status) async {
+    setState(() => decidingId = booking.id);
+    try {
+      await ref
+          .read(asyncBookingsProvider.notifier)
+          .updateBookingStatus(booking.id, status);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status == BookingStatus.confirmed
+                  ? 'Đã xác nhận lịch chụp với ${booking.clientName}'
+                  : 'Đã từ chối và hoàn cọc cho ${booking.clientName}',
             ),
           ),
-          bottom: const TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelColor: AppColors.obsidian,
-            unselectedLabelColor: AppColors.steel,
-            indicatorColor: AppColors.obsidian,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold),
-            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal),
-            dividerColor: AppColors.fog,
-            tabs: [
-              Tab(text: 'Pending'),
-              Tab(text: 'Confirmed'),
-              Tab(text: 'Held'),
-              Tab(text: 'Released'),
-              Tab(text: 'Canceled'),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật yêu cầu: $error')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => decidingId = null);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bookingsState = ref.watch(incomingBookingsProvider);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Quản lý đặt lịch'),
+        actions: [
+          IconButton(
+            tooltip: 'Lịch làm việc',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => context.push('/photographer_home/availability'),
+          ),
+        ],
+      ),
+      body: bookingsState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Không thể tải lịch đặt'),
+              TextButton(
+                onPressed: () => ref.invalidate(asyncBookingsProvider),
+                child: const Text('Thử lại'),
+              ),
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [
-            _BookingList(status: 'pending'),
-            _BookingList(status: 'confirmed'),
-            _BookingList(status: 'held'),
-            _BookingList(status: 'released'),
-            _BookingList(status: 'canceled'),
-          ],
-        ),
+        data: (bookings) {
+          final today = DateUtils.dateOnly(DateTime.now());
+          final weekEnd = today.add(const Duration(days: 7));
+          final pending = bookings
+              .where((b) => b.status == BookingStatus.pending)
+              .length;
+          final due = bookings
+              .where((b) => b.status == BookingStatus.held)
+              .length;
+          final upcoming = bookings.where((b) {
+            final date = DateTime.tryParse(b.date);
+            return b.status == BookingStatus.confirmed &&
+                date != null &&
+                !date.isBefore(today) &&
+                !date.isAfter(weekEnd);
+          }).length;
+          final completed = bookings
+              .where((b) => b.status == BookingStatus.released)
+              .length;
+          final search = query.trim().toLowerCase();
+          final filtered = bookings.where((b) {
+            if (!_inGroup(b)) return false;
+            final date = DateTime.tryParse(b.date);
+            if (scope == _DateScope.upcoming &&
+                (date == null || date.isBefore(today))) {
+              return false;
+            }
+            if (scope == _DateScope.past &&
+                (date == null || !date.isBefore(today))) {
+              return false;
+            }
+            return search.isEmpty ||
+                [
+                  b.id,
+                  b.clientName,
+                  b.contactPhone ?? '',
+                  b.location,
+                  b.style,
+                  b.packageName ?? '',
+                ].join(' ').toLowerCase().contains(search);
+          }).toList()..sort((a, b) => a.date.compareTo(b.date));
+          return ListView(
+            padding: AppTokens.pagePadding,
+            children: [
+              const CollaborationInvites(),
+              Text(
+                'Theo dõi và xử lý các buổi chụp của bạn.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _Metric(label: 'Chờ duyệt', value: pending),
+                  _Metric(label: 'Tuần này', value: upcoming),
+                  _Metric(label: 'Cần giao ảnh', value: due),
+                  _Metric(label: 'Hoàn thành', value: completed),
+                ],
+              ),
+              if (pending + due > 0) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: const Color(0xFFFFF7ED),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      '$pending yêu cầu chờ duyệt · $due buổi cần giao ảnh',
+                      style: const TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final item in _BookingGroup.values) ...[
+                      ChoiceChip(
+                        label: Text(switch (item) {
+                          _BookingGroup.pending => 'Cần duyệt',
+                          _BookingGroup.active => 'Đang diễn ra',
+                          _BookingGroup.done => 'Hoàn thành',
+                          _BookingGroup.cancelled => 'Đã huỷ',
+                        }),
+                        selected: group == item,
+                        onSelected: (_) => setState(() => group = item),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Tìm tên khách, mã lịch, địa điểm...',
+                ),
+                onChanged: (value) => setState(() => query = value),
+              ),
+              const SizedBox(height: 8),
+              DropdownButton<_DateScope>(
+                value: scope,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(
+                    value: _DateScope.all,
+                    child: Text('Tất cả ngày'),
+                  ),
+                  DropdownMenuItem(
+                    value: _DateScope.upcoming,
+                    child: Text('Sắp tới'),
+                  ),
+                  DropdownMenuItem(
+                    value: _DateScope.past,
+                    child: Text('Đã qua'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => scope = value ?? _DateScope.all),
+              ),
+              if (filtered.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: Text('Không có lịch chụp phù hợp')),
+                )
+              else
+                for (final booking in filtered)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: StudioBookingCard(
+                      booking: booking,
+                      busy: decidingId == booking.id,
+                      onDecide: (status) => _decide(booking, status),
+                    ),
+                  ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _BookingList extends StatelessWidget {
-  final String status;
-
-  const _BookingList({required this.status});
+class _Metric extends StatelessWidget {
+  const _Metric({required this.label, required this.value});
+  final String label;
+  final int value;
 
   @override
-  Widget build(BuildContext context) {
-    final statusMap = {
-      'pending': 'Chờ duyệt',
-      'confirmed': 'Đã xác nhận',
-      'held': 'Đang giữ chỗ',
-      'released': 'Hoàn thành',
-      'canceled': 'Đã huỷ',
-    };
-
-    // Generate dummy data based on status
-    final bookings = List.generate(3, (index) {
-      return {
-        'id': 'BK-${status.toUpperCase()}-${1000 + index}',
-        'client': 'Khách hàng $index',
-        'date': '24/10/2026',
-        'package': 'Gói Tiệc Cưới',
-        'price': '3.500.000đ',
-        'status': status,
-        'statusLabel': statusMap[status]!,
-      };
-    });
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: bookings.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final b = bookings[index];
-        return GestureDetector(
-          onTap: () {
-            context.push('/photographer_home/booking/${b['id']}');
-          },
-          child: SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      b['id'] as String,
-                      style: const TextStyle(
-                        color: AppColors.steel,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    _buildBadge(
-                      b['status'] as String,
-                      b['statusLabel'] as String,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  b['client'] as String,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.obsidian,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 16,
-                      color: AppColors.steel,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      b['date'] as String,
-                      style: const TextStyle(
-                        color: AppColors.steel,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.category,
-                      size: 16,
-                      color: AppColors.steel,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      b['package'] as String,
-                      style: const TextStyle(
-                        color: AppColors.steel,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: AppColors.fog),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Tổng tiền',
-                      style: TextStyle(color: AppColors.steel),
-                    ),
-                    Text(
-                      b['price'] as String,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.obsidian,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBadge(String s, String label) {
-    if (s == 'pending') return LensBadge(text: label, type: BadgeType.ember);
-    if (s == 'confirmed')
-      return LensBadge(text: label, type: BadgeType.darkFilled);
-    if (s == 'held')
-      return LensBadge(
-        text: label,
-        type: BadgeType.darkOverlay,
-      ); // Outline badge
-    if (s == 'released')
-      return LensBadge(text: label, type: BadgeType.darkFilled);
-    return LensBadge(text: label, type: BadgeType.darkOverlay);
-  }
+  Widget build(BuildContext context) => Container(
+    width: 155,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: AppColors.snow,
+      border: Border.all(color: AppColors.fog),
+      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.steel),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '$value',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
 }

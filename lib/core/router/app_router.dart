@@ -14,16 +14,29 @@ import 'package:lens_creator_mobile/features/photographer/packages/packages_scre
 import 'package:lens_creator_mobile/features/photographer/packages/edit_package_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/availability/availability_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/portfolio/portfolio_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/portfolio/public_profile_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/messages/messages_list_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/messages/chat_detail_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/wallet/wallet_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/achievements/achievements_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/storage/storage_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/reviews/reviews_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/bookings/delivery_gallery_screen.dart';
+import 'package:lens_creator_mobile/providers/data_providers.dart';
+import 'package:lens_creator_mobile/features/photographer/assistant/assistant_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/settings/settings_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      final user = ref.read(authUserProvider);
+      if (state.matchedLocation.startsWith('/photographer_home') &&
+          (user == null || user.role != 'photographer')) {
+        return '/login';
+      }
+      return null;
+    },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
@@ -48,6 +61,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => BookingRequestDetailScreen(
               bookingId: state.pathParameters['id']!,
             ),
+          ),
+          GoRoute(
+            path: '/photographer_home/booking/:id/gallery',
+            builder: (context, state) =>
+                DeliveryGalleryScreen(bookingId: state.pathParameters['id']!),
           ),
 
           GoRoute(
@@ -76,6 +94,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PortfolioScreen(),
       ),
       GoRoute(
+        path: '/photographer_home/public_profile',
+        builder: (context, state) => const PublicProfileScreen(),
+      ),
+      GoRoute(
         path: '/photographer_home/wallet',
         builder: (context, state) => const WalletScreen(),
       ),
@@ -96,8 +118,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ReviewsScreen(),
       ),
       GoRoute(
+        path: '/photographer_home/assistant',
+        builder: (context, state) => const AssistantScreen(),
+      ),
+      GoRoute(
+        path: '/photographer_home/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
         path: '/photographer_home/messages/:id',
-        builder: (context, state) => ChatDetailScreen(id: state.pathParameters['id']!),
+        builder: (context, state) =>
+            ChatDetailScreen(id: state.pathParameters['id']!),
       ),
     ],
   );

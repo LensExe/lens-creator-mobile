@@ -30,7 +30,7 @@ class TransactionItem extends StatelessWidget {
             decoration: BoxDecoration(
               color: isIncome
                   ? AppColors.mist
-                  : AppColors.ember.withOpacity(0.1),
+                  : AppColors.ember.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

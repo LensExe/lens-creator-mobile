@@ -1,536 +1,328 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:lens_creator_mobile/core/widgets/surface_card.dart';
-import 'package:lens_creator_mobile/core/widgets/lens_badge.dart';
-import 'package:lens_creator_mobile/core/widgets/primary_button.dart';
-import 'package:lens_creator_mobile/core/widgets/outlined_button.dart';
+import 'package:intl/intl.dart';
 
-class BookingRequestDetailScreen extends StatelessWidget {
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../domain/booking_rules.dart';
+import '../../domain/models/models.dart';
+import '../../providers/data_providers.dart';
+import 'bookings/widgets/studio_booking_card.dart';
+import 'bookings/widgets/collaborators_panel.dart';
+
+class BookingRequestDetailScreen extends ConsumerStatefulWidget {
+  const BookingRequestDetailScreen({super.key, required this.bookingId});
   final String bookingId;
 
-  const BookingRequestDetailScreen({super.key, required this.bookingId});
+  @override
+  ConsumerState<BookingRequestDetailScreen> createState() =>
+      _BookingRequestDetailScreenState();
+}
+
+class _BookingRequestDetailScreenState
+    extends ConsumerState<BookingRequestDetailScreen> {
+  bool deciding = false;
+
+  Future<void> _decide(Booking booking, BookingStatus status) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          status == BookingStatus.confirmed
+              ? 'Xác nhận lịch chụp?'
+              : 'Từ chối yêu cầu?',
+        ),
+        content: Text(
+          status == BookingStatus.confirmed
+              ? 'Khách sẽ được thông báo để thanh toán phần còn lại.'
+              : 'Tiền cọc ${formatDong(booking.depositAmount)} sẽ được hoàn đầy đủ cho khách.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Quay lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              status == BookingStatus.confirmed ? 'Xác nhận' : 'Từ chối',
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => deciding = true);
+    try {
+      await ref
+          .read(asyncBookingsProvider.notifier)
+          .updateBookingStatus(booking.id, status);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              status == BookingStatus.confirmed
+                  ? 'Đã xác nhận lịch chụp'
+                  : 'Đã từ chối và hoàn cọc',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$error')));
+      }
+    } finally {
+      if (mounted) setState(() => deciding = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Determine status from mock ID for demonstration
-    String status = 'pending';
-    if (bookingId.contains('CONFIRMED')) status = 'confirmed';
-    if (bookingId.contains('HELD')) status = 'held';
-    if (bookingId.contains('RELEASED')) status = 'released';
-    if (bookingId.contains('CANCELED')) status = 'canceled';
-
-    final booking = {
-      'id': bookingId,
-      'clientName': 'Trần Thị Thu Phương',
-      'photographerName': 'Studio Ánh Sáng',
-      'style': 'Chụp Tiệc Cưới',
-      'date': '24-10-2026',
-      'location': 'Nhà hàng White Palace, Phạm Văn Đồng, HCM',
-      'price': 3500000,
-      'status': status,
-      'collaborators': <String>[],
-    };
-
+    final bookings = ref.watch(incomingBookingsProvider);
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        backgroundColor: AppColors.snow,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.obsidian),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'Chi tiết yêu cầu',
-          style: TextStyle(
-            color: AppColors.obsidian,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+      appBar: AppBar(title: const Text('Chi tiết lịch chụp')),
+      body: bookings.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Không thể tải lịch chụp'),
+              TextButton(
+                onPressed: () => ref.invalidate(asyncBookingsProvider),
+                child: const Text('Thử lại'),
+              ),
+            ],
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildSummaryCard(booking),
-            const SizedBox(height: 24),
-            _buildPriceBreakdown(booking),
-            const SizedBox(height: 24),
-            _buildTimeline(booking),
-            const SizedBox(height: 24),
-            _buildActionCard(context, booking),
-            if (status == 'held' || status == 'released') ...[
-              const SizedBox(height: 24),
-              _buildGalleryPanel(booking),
-            ],
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  BadgeType _getBadgeType(String status) {
-    switch (status) {
-      case 'pending':
-        return BadgeType.ember;
-      case 'confirmed':
-        return BadgeType.blue;
-      case 'held':
-        return BadgeType.purple;
-      case 'released':
-        return BadgeType.green;
-      case 'canceled':
-        return BadgeType.red;
-      default:
-        return BadgeType.darkFilled;
-    }
-  }
-
-  String _getStatusLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Chờ xác nhận';
-      case 'confirmed':
-        return 'Đợi thanh toán';
-      case 'held':
-        return 'Đang thực hiện';
-      case 'released':
-        return 'Hoàn thành';
-      case 'canceled':
-        return 'Đã hủy';
-      default:
-        return 'Không xác định';
-    }
-  }
-
-  Widget _buildSummaryCard(Map<String, dynamic> booking) {
-    return SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        data: (items) {
+          Booking? booking;
+          for (final item in items) {
+            if (item.id == widget.bookingId) {
+              booking = item;
+              break;
+            }
+          }
+          if (booking == null) {
+            return const Center(child: Text('Không tìm thấy lịch chụp'));
+          }
+          final b = booking;
+          final date = DateTime.tryParse(b.date);
+          return ListView(
+            padding: AppTokens.pagePadding,
             children: [
-              Text(
-                'Mã: ${booking['id']}',
-                style: const TextStyle(
-                  color: AppColors.steel,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              StudioBookingCard(booking: b, openDetail: false),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Thông tin buổi chụp',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      _Row('Mã lịch', b.id),
+                      _Row('Khách hàng', b.clientName),
+                      if (b.contactPhone != null)
+                        _Row('Số điện thoại', b.contactPhone!),
+                      _Row(
+                        'Ngày chụp',
+                        date == null
+                            ? b.date
+                            : DateFormat('dd/MM/yyyy').format(date),
+                      ),
+                      if (b.timeSlot != null) _Row('Bắt đầu', b.timeSlot!),
+                      _Row('Địa điểm', b.location),
+                      if (b.packageName != null)
+                        _Row('Gói dịch vụ', b.packageName!),
+                      if (b.promisedPhotos != null)
+                        _Row('Số ảnh cam kết', '${b.promisedPhotos} ảnh'),
+                      if (b.deliveryDays != null)
+                        _Row(
+                          'Hạn giao',
+                          '${b.deliveryDays} ngày sau buổi chụp',
+                        ),
+                      if (b.note?.isNotEmpty == true) _Row('Ghi chú', b.note!),
+                    ],
+                  ),
                 ),
               ),
-              LensBadge(
-                text: _getStatusLabel(booking['status'] as String),
-                type: _getBadgeType(booking['status'] as String),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Thanh toán',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      _Row('Tổng giá', formatDong(b.price)),
+                      _Row('Đã đặt cọc', formatDong(b.depositAmount)),
+                      _Row(
+                        'Phí sàn (10%)',
+                        formatDong(BookingRules.commission(b.price)),
+                      ),
+                      const Divider(),
+                      _Row(
+                        'Thực nhận sau nghiệm thu',
+                        formatDong(BookingRules.payoutFor(b, b.photographerId)),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tiến trình',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Đặt cọc → Xác nhận → Thanh toán → Giao ảnh → Khách nghiệm thu',
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Hiện tại: ${BookingRules.statusLabel(b.status)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ember,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (b.status == BookingStatus.pending)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Khách đã đặt cọc ${formatDong(b.depositAmount)}. Xác nhận hoặc từ chối yêu cầu.',
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: deciding
+                                    ? null
+                                    : () => _decide(b, BookingStatus.cancelled),
+                                child: const Text('Từ chối'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: deciding
+                                    ? null
+                                    : () => _decide(b, BookingStatus.confirmed),
+                                child: const Text('Xác nhận'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (b.status == BookingStatus.confirmed)
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Đang chờ khách thanh toán phần còn lại.'),
+                  ),
+                ),
+              if (b.status == BookingStatus.held ||
+                  b.status == BookingStatus.released)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Ảnh bàn giao: ${b.deliveredPhotos}/${b.promisedPhotos ?? 1}',
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => context.push(
+                            '/photographer_home/booking/${b.id}/gallery',
+                          ),
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: Text(
+                            b.status == BookingStatus.held
+                                ? 'Giao ảnh'
+                                : 'Xem ảnh',
+                          ),
+                        ),
+                        if (b.status == BookingStatus.held)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: Text(
+                              'Sàn giải ngân sau khi khách xác nhận đã nhận đủ ảnh.',
+                              style: TextStyle(color: AppColors.steel),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              if ((b.status == BookingStatus.confirmed ||
+                      b.status == BookingStatus.held) &&
+                  b.deliveredPhotos == 0) ...[
+                const SizedBox(height: 12),
+                CollaboratorsPanel(booking: b),
+              ],
+              const SizedBox(height: 24),
             ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            booking['clientName'] as String,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildInfoRow(Icons.category, 'Gói: ${booking['style']}'),
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.calendar_today, 'Ngày chụp: ${booking['date']}'),
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.location_on, 'Địa điểm: ${booking['location']}'),
-        ],
+          );
+        },
       ),
     );
   }
+}
 
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 9),
+    child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: AppColors.steel),
-        const SizedBox(width: 12),
+        SizedBox(
+          width: 130,
+          child: Text(label, style: const TextStyle(color: AppColors.steel)),
+        ),
         Expanded(
           child: Text(
-            text,
-            style: const TextStyle(color: AppColors.obsidian, fontSize: 15),
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPriceBreakdown(Map<String, dynamic> booking) {
-    final price = booking['price'] as int;
-    final commission = (price * 0.1).toInt(); // 10%
-    final payout = price - commission;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.pebble),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Chi tiết thanh toán',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Tổng giá', style: TextStyle(color: AppColors.steel)),
-              Text(
-                '${price.toString()}đ',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.obsidian,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Phí nền tảng (10%)',
-                style: TextStyle(color: AppColors.steel),
-              ),
-              Text(
-                '-${commission.toString()}đ',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ember,
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: AppColors.mist),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Bạn nhận được',
-                style: TextStyle(
-                  color: AppColors.obsidian,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '${payout.toString()}đ',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeline(Map<String, dynamic> booking) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Tiến trình',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildTimelineItem('Khách hàng đặt lịch', true),
-          _buildTimelineItem(
-            'Thợ chụp xác nhận',
-            booking['status'] != 'pending',
-          ),
-          _buildTimelineItem(
-            'Khách hàng thanh toán',
-            booking['status'] == 'held' || booking['status'] == 'released',
-          ),
-          _buildTimelineItem(
-            'Giao ảnh & Hoàn thành',
-            booking['status'] == 'released',
-            isLast: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineItem(
-    String text,
-    bool isCompleted, {
-    bool isLast = false,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: isCompleted ? AppColors.ember : AppColors.pebble,
-                shape: BoxShape.circle,
-              ),
-            ),
-            if (!isLast)
-              Container(
-                width: 2,
-                height: 30,
-                color: isCompleted ? AppColors.ember : AppColors.pebble,
-              ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Text(
-          text,
-          style: TextStyle(
-            color: isCompleted ? AppColors.obsidian : AppColors.steel,
-            fontWeight: isCompleted ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(BuildContext context, Map<String, dynamic> booking) {
-    final status = booking['status'] as String;
-
-    Widget content;
-    switch (status) {
-      case 'pending':
-        content = Column(
-          children: [
-            const Text(
-              'Xác nhận hoặc từ chối yêu cầu này.',
-              style: TextStyle(
-                color: AppColors.obsidian,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedWhiteButton(text: 'Từ chối', onPressed: () {}),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: PrimaryButton(text: 'Xác nhận', onPressed: () {}),
-                ),
-              ],
-            ),
-          ],
-        );
-        break;
-      case 'confirmed':
-        content = Column(
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.access_time_filled, color: Colors.blue, size: 28),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Đang chờ khách thanh toán để giữ lịch.',
-                    style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            PrimaryButton(text: 'Thêm thợ phụ / Ghép thợ', onPressed: () {}),
-          ],
-        );
-        break;
-      case 'held':
-        content = Column(
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.shield, color: Colors.purple, size: 28),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Tiền đang được sàn giữ. Bạn sẽ nhận tiền sau khi khách xác nhận đã nhận ảnh.',
-                    style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            OutlinedWhiteButton(text: 'Thêm thợ phụ', onPressed: () {}),
-          ],
-        );
-        break;
-      case 'released':
-        content = const Row(
-          children: [
-            Icon(Icons.account_balance_wallet, color: Colors.green, size: 28),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Đã nhận tiền (đã trừ phí sàn). Giao dịch hoàn tất.',
-                style: TextStyle(
-                  color: AppColors.obsidian,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-        );
-        break;
-      case 'canceled':
-      default:
-        content = const Row(
-          children: [
-            Icon(Icons.cancel, color: Colors.red, size: 28),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Yêu cầu này đã bị hủy.',
-                style: TextStyle(
-                  color: AppColors.obsidian,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        );
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.pebble),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            offset: Offset(0, 4),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: content,
-    );
-  }
-
-  Widget _buildGalleryPanel(Map<String, dynamic> booking) {
-    final status = booking['status'] as String;
-    final isReadonly = status == 'released';
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Ảnh giao khách',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.obsidian,
-                ),
-              ),
-              if (!isReadonly)
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.upload_file,
-                    color: AppColors.ember,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    'Tải ảnh',
-                    style: TextStyle(
-                      color: AppColors.ember,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: 6,
-            itemBuilder: (context, index) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: AppColors.pebble,
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: NetworkImage(
-                      'https://picsum.photos/seed/booking${booking['id']}_$index/200',
-                    ),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 }

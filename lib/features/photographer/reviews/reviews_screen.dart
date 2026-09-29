@@ -1,109 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:lens_creator_mobile/core/widgets/review_item.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ReviewsScreen extends StatelessWidget {
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/review_item.dart';
+import '../../../providers/data_providers.dart';
+
+final _sampleReviews = [
+  Review(
+    id: 'me-r1',
+    photographerId: 'me',
+    authorName: 'Phạm Thu Hà',
+    authorAvatar: '',
+    rating: 5,
+    comment: 'Buổi chụp rất thoải mái, ảnh ra đẹp hơn mong đợi. Sẽ quay lại lần sau!',
+    date: '2026-09-20',
+  ),
+  Review(
+    id: 'me-r2',
+    photographerId: 'me',
+    authorName: 'Ngô Bảo Long',
+    authorAvatar: '',
+    rating: 5,
+    comment: 'Chụp có tâm, chỉnh sửa kỹ và giao ảnh đúng hẹn. Rất hài lòng.',
+    date: '2026-09-15',
+  ),
+  Review(
+    id: 'me-r3',
+    photographerId: 'me',
+    authorName: 'Đặng Mỹ Linh',
+    authorAvatar: '',
+    rating: 4,
+    comment: 'Tư vấn góc chụp và trang phục rất nhiệt tình, kết quả ưng ý lắm.',
+    date: '2026-09-02',
+  ),
+];
+
+class ReviewsScreen extends ConsumerWidget {
   const ReviewsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock Data
-    final reviews = [
-      Review(
-        id: 'r1',
-        photographerId: 'p1',
-        authorName: 'Nguyễn Trần Vy',
-        authorAvatar: 'https://i.pravatar.cc/150?img=1',
-        rating: 5.0,
-        comment: 'Anh chụp ảnh rất có tâm, nhiệt tình hướng dẫn tạo dáng. Bộ ảnh cưới của vợ chồng mình ra màu ưng ý lắm luôn! Sẽ giới thiệu cho bạn bè.',
-        date: '2026-09-20T10:00:00Z',
-      ),
-      Review(
-        id: 'r2',
-        photographerId: 'p1',
-        authorName: 'Lê Hoàng',
-        authorAvatar: 'https://i.pravatar.cc/150?img=12',
-        rating: 4.5,
-        comment: 'Ảnh đẹp, giao file nhanh gọn. Tuy nhiên hôm chụp trời hơi nắng nên mặt mình hơi nhăn tí, nhưng photographer chỉnh sửa lại nhìn rất ổn.',
-        date: '2026-09-15T14:30:00Z',
-      ),
-      Review(
-        id: 'r3',
-        photographerId: 'p1',
-        authorName: 'Minh Anh',
-        authorAvatar: '',
-        rating: 5.0,
-        comment: 'Dịch vụ tuyệt vời 10/10.',
-        date: '2026-09-02T09:15:00Z',
-      ),
-    ];
-
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(myPhotographerProvider);
+    final reviews = _sampleReviews
+        .where((review) => review.photographerId == profile?.id)
+        .toList();
     return Scaffold(
-      backgroundColor: AppColors.snow,
-      appBar: AppBar(
-        backgroundColor: AppColors.snow,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.obsidian),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                const Text(
-                  'Đánh giá',
-                  style: TextStyle(
-                    color: AppColors.obsidian,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 32,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '(${reviews.length} nhận xét)',
-                  style: const TextStyle(color: AppColors.steel, fontSize: 16),
-                ),
-              ],
-            ).animate().fade().slideX(begin: -0.1),
-            const SizedBox(height: 32),
-
-            if (reviews.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Text(
-                    'Chưa có đánh giá nào.',
-                    style: TextStyle(color: AppColors.steel, fontSize: 15),
-                  ),
-                ),
-              ).animate().fade()
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: reviews.length,
-                itemBuilder: (context, index) {
-                  return ReviewItemWidget(
-                        review: reviews[index],
-                        showDivider: index < reviews.length - 1,
-                      )
-                      .animate()
-                      .fade(delay: (100 * index).ms)
-                      .slideX(begin: 0.1, end: 0);
-                },
+      appBar: AppBar(title: const Text('Đánh giá')),
+      body: ListView(
+        padding: AppTokens.pagePadding,
+        children: [
+          Text(
+            profile == null
+                ? 'Đánh giá của bạn'
+                : '${profile.rating.toStringAsFixed(1)} ★ · ${profile.reviewCount} đánh giá',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Nhận xét từ khách hàng sau buổi chụp.',
+            style: TextStyle(color: AppColors.steel),
+          ),
+          const SizedBox(height: 20),
+          if (reviews.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Chưa có đánh giá nào.'),
               ),
-          ],
-        ),
+            )
+          else
+            for (final (index, review) in reviews.indexed)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ReviewItemWidget(
+                    review: review,
+                    showDivider: index < reviews.length - 1,
+                  ),
+                ),
+              ),
+        ],
       ),
     );
   }

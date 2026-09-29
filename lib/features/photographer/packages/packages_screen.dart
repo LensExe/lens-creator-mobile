@@ -1,100 +1,117 @@
 import 'package:flutter/material.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import 'widgets/package_card_item.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../providers/data_providers.dart';
+import '../bookings/widgets/studio_booking_card.dart';
 
-class PackagesScreen extends StatelessWidget {
+class PackagesScreen extends ConsumerWidget {
   const PackagesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock packages data
-    final packages = [
-      {
-        'id': 'pkg-1',
-        'title': 'Chụp ảnh thẻ chuyên nghiệp',
-        'price': '150.000đ',
-        'description': 'Bao gồm makeup nhẹ, chụp không giới hạn, PTS và in 4 tấm 3x4, 4 tấm 4x6.',
-        'status': 'Hoạt động',
-        'isActive': true,
-      },
-      {
-        'id': 'pkg-2',
-        'title': 'Ngoại cảnh cá nhân',
-        'price': '800.000đ',
-        'description': 'Gói chụp 2 tiếng tại 1 địa điểm nội thành. Giao 20 file chỉnh sửa kỹ, toàn bộ file gốc.',
-        'status': 'Hoạt động',
-        'isActive': true,
-      },
-      {
-        'id': 'pkg-3',
-        'title': 'Chụp Tiệc Cưới Truyền Thống',
-        'price': '3.500.000đ / ngày',
-        'description': '1 máy ảnh, bao trọn gói nhà trai - nhà gái và nhà hàng. Không giới hạn số lượng ảnh.',
-        'status': 'Bản nháp',
-        'isActive': false,
-      },
-    ];
-
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        backgroundColor: AppColors.snow,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Gói dịch vụ',
-          style: TextStyle(
-            color: AppColors.obsidian,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-      ),
-      body: ListView.separated(
-        padding: const EdgeInsets.only(
-          top: 20,
-          left: 20,
-          right: 20,
-          bottom: 100,
-        ), // extra padding bottom for FAB
-        itemCount: packages.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 16),
-        itemBuilder: (context, index) {
-          final pkg = packages[index];
-          return PackageCardItem(
-                id: pkg['id'] as String,
-                title: pkg['title'] as String,
-                price: pkg['price'] as String,
-                description: pkg['description'] as String,
-                status: pkg['status'] as String,
-                isActive: pkg['isActive'] as bool,
-              )
-              .animate()
-              .fade(duration: 400.ms, delay: (index * 100).ms)
-              .slideY(
-                begin: 0.1,
-                end: 0,
-                duration: 400.ms,
-                curve: Curves.easeOutQuad,
-              );
-        },
-      ),
-      floatingActionButton:
-          FloatingActionButton(
-            onPressed: () {
-              // TODO: Mở màn hình tạo gói mới
-            },
-            backgroundColor: AppColors.obsidian,
-            elevation: 4,
-            shape: const CircleBorder(),
-            child: const Icon(Icons.add, color: AppColors.snow),
-          ).animate().scale(
-            delay: 400.ms,
-            duration: 300.ms,
-            curve: Curves.easeOutBack,
-          ),
+      appBar: AppBar(title: const Text('Gói dịch vụ')),
+      body: profile == null
+          ? const Center(
+              child: Text('Vui lòng đăng nhập tài khoản nhiếp ảnh gia'),
+            )
+          : ListView(
+              padding: AppTokens.pagePadding,
+              children: [
+                const Text(
+                  'Thiết lập các gói chụp khách có thể chọn khi đặt lịch.',
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  color: const Color(0xFFFFF7ED),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Số lượng ảnh và thời hạn giao là cam kết của buổi chụp. Lịch đã đặt giữ nguyên điều khoản khi bạn sửa gói.',
+                      style: const TextStyle(color: Color(0xFF9A3412)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (profile.packages.isEmpty)
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Chưa có gói dịch vụ. Thêm gói để khách chọn khi đặt lịch.',
+                      ),
+                    ),
+                  ),
+                for (final package in profile.packages)
+                  Card(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+                      onTap: () => context.push(
+                        '/photographer_home/packages/edit/${package.id}',
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    package.name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 20,
+                                  color: AppColors.steel,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              package.description,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${package.photoCount} ảnh · ${package.durationHours} giờ · giao trong ${package.deliveryDays} ngày',
+                              style: const TextStyle(
+                                color: AppColors.steel,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              formatDong(package.price),
+                              style: const TextStyle(
+                                color: AppColors.ember,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () =>
+                      context.push('/photographer_home/packages/edit/new'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Thêm gói dịch vụ'),
+                ),
+              ],
+            ),
     );
   }
 }

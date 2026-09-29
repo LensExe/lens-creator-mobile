@@ -1,586 +1,391 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:lens_creator_mobile/core/widgets/surface_card.dart';
-import 'package:lens_creator_mobile/core/widgets/lens_badge.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
-class PortfolioScreen extends StatefulWidget {
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../domain/models/models.dart';
+import '../../../providers/data_providers.dart';
+import '../bookings/widgets/studio_booking_card.dart';
+
+const _styles = [
+  'Chân dung',
+  'Cưới',
+  'Sự kiện',
+  'Thời trang',
+  'Sản phẩm',
+  'Gia đình',
+  'Du lịch',
+  'Ẩm thực',
+  'Kiến trúc',
+  'Đường phố',
+];
+const _cities = [
+  'Hà Nội',
+  'TP. Hồ Chí Minh',
+  'Đà Nẵng',
+  'Đà Lạt',
+  'Cần Thơ',
+  'Hải Phòng',
+];
+
+class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
 
   @override
-  State<PortfolioScreen> createState() => _PortfolioScreenState();
+  ConsumerState<PortfolioScreen> createState() => _PortfolioScreenState();
 }
 
-class _PortfolioScreenState extends State<PortfolioScreen> {
-  bool isEditing = false;
-
-  // Mock data
-  String avatar = 'https://i.pravatar.cc/150?img=11';
-  String name = 'Studio Ánh Sáng';
-  String city = 'Hồ Chí Minh';
-  double rating = 4.9;
-  int reviewCount = 120;
-  int experienceYears = 5;
-  int pricePerSession = 1500000;
-  List<String> styles = ['Chân dung', 'Sự kiện', 'Tiệc cưới'];
-  String bio =
-      'Chuyên cung cấp dịch vụ nhiếp ảnh chuyên nghiệp tại TP.HCM. Với 5 năm kinh nghiệm trong lĩnh vực chân dung và tiệc cưới, tôi cam kết mang lại những bức ảnh tự nhiên và cảm xúc nhất.';
-
-  List<String> portfolio = [
-    'https://picsum.photos/seed/p1/300/400',
-    'https://picsum.photos/seed/p2/400/300',
-    'https://picsum.photos/seed/p3/300/300',
-    'https://picsum.photos/seed/p4/300/500',
-    'https://picsum.photos/seed/p5/400/400',
-  ];
-
-  final List<String> allStyles = [
-    'Chân dung',
-    'Sự kiện',
-    'Tiệc cưới',
-    'Sản phẩm',
-    'Kỷ yếu',
-    'Ngoại cảnh',
-  ];
-
-  late TextEditingController _bioCtrl;
-  late TextEditingController _priceCtrl;
-  late TextEditingController _expCtrl;
-  String? _selectedCity;
-
-  @override
-  void initState() {
-    super.initState();
-    _bioCtrl = TextEditingController(text: bio);
-    _priceCtrl = TextEditingController(text: pricePerSession.toString());
-    _expCtrl = TextEditingController(text: experienceYears.toString());
-    _selectedCity = city;
-  }
+class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
+  final formKey = GlobalKey<FormState>();
+  final bio = TextEditingController();
+  final price = TextEditingController();
+  final experience = TextEditingController();
+  bool editing = false;
+  String? city;
+  List<String> styles = [];
+  List<String> photos = [];
 
   @override
   void dispose() {
-    _bioCtrl.dispose();
-    _priceCtrl.dispose();
-    _expCtrl.dispose();
+    bio.dispose();
+    price.dispose();
+    experience.dispose();
     super.dispose();
   }
 
-  void _toggleEdit() {
+  void _start(Photographer profile) {
     setState(() {
-      isEditing = !isEditing;
-      if (isEditing) {
-        // Reset controllers if entering edit mode
-        _bioCtrl.text = bio;
-        _priceCtrl.text = pricePerSession.toString();
-        _expCtrl.text = experienceYears.toString();
-        _selectedCity = city;
-      }
+      editing = true;
+      bio.text = profile.bio;
+      price.text = '${profile.pricePerSession}';
+      experience.text = '${profile.experienceYears}';
+      city = profile.city;
+      styles = [...profile.styles];
+      photos = [...profile.portfolio];
     });
   }
 
-  void _saveProfile() {
-    setState(() {
-      bio = _bioCtrl.text;
-      pricePerSession = int.tryParse(_priceCtrl.text) ?? pricePerSession;
-      experienceYears = int.tryParse(_expCtrl.text) ?? experienceYears;
-      if (_selectedCity != null) city = _selectedCity!;
-      isEditing = false;
-    });
+  void _save(Photographer profile) {
+    if (!formKey.currentState!.validate()) return;
+    if (styles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chọn ít nhất một phong cách chụp')),
+      );
+      return;
+    }
+    ref
+        .read(photographersProvider.notifier)
+        .update(
+          profile.copyWith(
+            city: city,
+            bio: bio.text.trim(),
+            pricePerSession: int.parse(price.text.trim()),
+            experienceYears: int.parse(experience.text.trim()),
+            styles: [...styles],
+            portfolio: [...photos],
+          ),
+        );
+    setState(() => editing = false);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ')));
+  }
+
+  Future<void> _addPhoto() async {
+    final controller = TextEditingController();
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thêm ảnh tác phẩm'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(labelText: 'Đường dẫn ảnh HTTPS'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Thêm'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (url == null || !mounted) return;
+    if (!Uri.tryParse(url).toString().startsWith('https://')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nhập đường dẫn ảnh HTTPS hợp lệ')),
+      );
+      return;
+    }
+    setState(() => photos.add(url));
   }
 
   @override
   Widget build(BuildContext context) {
+    final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      backgroundColor: AppColors.mist,
       appBar: AppBar(
-        backgroundColor: AppColors.snow,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            isEditing ? Icons.close : Icons.arrow_back,
-            color: AppColors.obsidian,
+        title: Text(editing ? 'Chỉnh sửa hồ sơ' : 'Hồ sơ năng lực'),
+        actions: [
+          if (profile != null && !editing)
+            IconButton(
+              tooltip: 'Chỉnh sửa',
+              onPressed: () => _start(profile),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+        ],
+      ),
+      body: profile == null
+          ? const Center(child: Text('Vui lòng đăng nhập'))
+          : editing
+          ? _editor(profile)
+          : _view(profile),
+    );
+  }
+
+  Widget _view(Photographer profile) => ListView(
+    padding: AppTokens.pagePadding,
+    children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+        child: Image.network(
+          profile.cover,
+          height: 170,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) =>
+              const SizedBox(height: 170, child: Icon(Icons.photo_outlined)),
+        ),
+      ),
+      const SizedBox(height: 16),
+      Text(profile.name, style: Theme.of(context).textTheme.headlineMedium),
+      const SizedBox(height: 6),
+      Text(
+        '${profile.city} · ${profile.experienceYears} năm kinh nghiệm',
+        style: const TextStyle(color: AppColors.steel),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 6,
+        children: [
+          for (final style in profile.styles) Chip(label: Text(style)),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Giới thiệu',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(profile.bio),
+              const SizedBox(height: 12),
+              Text(
+                'Giá từ ${formatDong(profile.pricePerSession)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ember,
+                ),
+              ),
+            ],
           ),
-          onPressed: () {
-            if (isEditing) {
-              _toggleEdit(); // Cancel edit
-            } else {
-              context.pop();
-            }
+        ),
+      ),
+      const SizedBox(height: 16),
+      Text(
+        'Tác phẩm · ${profile.portfolio.length} ảnh',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      const SizedBox(height: 8),
+      _PhotoGrid(photos: profile.portfolio),
+      const SizedBox(height: 16),
+      OutlinedButton.icon(
+        onPressed: () => context.push('/photographer_home/public_profile'),
+        icon: const Icon(Icons.visibility_outlined),
+        label: const Text('Xem hồ sơ công khai'),
+      ),
+      const SizedBox(height: 8),
+      FilledButton.icon(
+        onPressed: () => _start(profile),
+        icon: const Icon(Icons.edit_outlined),
+        label: const Text('Chỉnh sửa hồ sơ'),
+      ),
+    ],
+  );
+
+  Widget _editor(Photographer profile) => Form(
+    key: formKey,
+    child: ListView(
+      padding: AppTokens.pagePadding,
+      children: [
+        const Text(
+          'Cập nhật thông tin và tác phẩm khách nhìn thấy trên hồ sơ.',
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          initialValue: _cities.contains(city) ? city : null,
+          decoration: const InputDecoration(labelText: 'Tỉnh / Thành phố'),
+          items: [
+            for (final value in _cities)
+              DropdownMenuItem(value: value, child: Text(value)),
+          ],
+          onChanged: (value) => setState(() => city = value),
+          validator: (value) => value == null ? 'Chọn tỉnh / thành phố' : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: price,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Giá khởi điểm (VNĐ)'),
+          validator: (value) {
+            final parsed = int.tryParse(value ?? '');
+            return parsed == null || parsed <= 0 ? 'Giá phải lớn hơn 0' : null;
           },
         ),
-        title: Text(
-          isEditing ? 'Chỉnh sửa hồ sơ' : 'Hồ sơ năng lực',
-          style: const TextStyle(
-            color: AppColors.obsidian,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: experience,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Số năm kinh nghiệm'),
+          validator: (value) {
+            final parsed = int.tryParse(value ?? '');
+            return parsed == null || parsed < 0 ? 'Nhập số năm hợp lệ' : null;
+          },
         ),
-        actions: [
-          if (isEditing)
-            IconButton(
-              icon: const Icon(Icons.check, color: AppColors.ember),
-              onPressed: _saveProfile,
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, color: AppColors.obsidian),
-              onPressed: _toggleEdit,
-            ),
-        ],
-      ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: isEditing ? _buildEditMode() : _buildViewMode(),
-      ),
-    );
-  }
-
-  Widget _buildViewMode() {
-    return SingleChildScrollView(
-      key: const ValueKey('view'),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppColors.pebble,
-                      backgroundImage: NetworkImage(avatar),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.obsidian,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '${(pricePerSession / 1000).toStringAsFixed(0)}k+',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.ember,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 4,
-                            children: [
-                              _buildIconText(Icons.location_on_outlined, city),
-                              _buildIconText(
-                                Icons.star,
-                                '$rating ($reviewCount)',
-                                iconColor: Colors.orange,
-                              ),
-                              _buildIconText(
-                                Icons.work_outline,
-                                '$experienceYears năm',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: styles
-                                .map(
-                                  (s) => LensBadge(
-                                    text: s,
-                                    type: BadgeType.darkOverlay,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Divider(color: AppColors.fog),
-                const SizedBox(height: 16),
-                Text(
-                  bio,
-                  style: const TextStyle(
-                    color: AppColors.slate,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ).animate().slideY(begin: 0.1, end: 0).fade(),
-          const SizedBox(height: 32),
-          Text(
-            'Tác phẩm (${portfolio.length} ảnh)',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.obsidian,
-            ),
-          ).animate().fade(delay: 100.ms),
-          const SizedBox(height: 16),
-          if (portfolio.isEmpty)
-            _buildEmptyGallery()
-          else
-            _buildGalleryGrid(false).animate().fade(delay: 200.ms),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconText(IconData icon, String text, {Color? iconColor}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: iconColor ?? AppColors.steel),
-        const SizedBox(width: 4),
+        const SizedBox(height: 16),
+        Text('Phong cách chụp', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final style in _styles)
+              FilterChip(
+                label: Text(style),
+                selected: styles.contains(style),
+                onSelected: (_) => setState(() {
+                  if (styles.contains(style)) {
+                    styles.remove(style);
+                  } else {
+                    styles.add(style);
+                  }
+                }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: bio,
+          maxLines: 4,
+          maxLength: 500,
+          decoration: const InputDecoration(labelText: 'Giới thiệu'),
+          validator: (value) =>
+              (value ?? '').trim().isEmpty ? 'Nhập giới thiệu' : null,
+        ),
+        const SizedBox(height: 16),
         Text(
-          text,
-          style: const TextStyle(color: AppColors.steel, fontSize: 13),
+          'Tác phẩm · ${photos.length} ảnh',
+          style: Theme.of(context).textTheme.titleMedium,
         ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyGallery() {
-    return Container(
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.pebble),
-      ),
-      child: Center(
-        child: Column(
-          children: const [
-            Icon(
-              Icons.image_not_supported_outlined,
-              size: 48,
-              color: AppColors.steel,
+        const Text(
+          'Khuyến nghị khoảng 12 ảnh đã hậu kỳ.',
+          style: TextStyle(color: AppColors.steel, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        _PhotoGrid(
+          photos: photos,
+          onRemove: (index) => setState(() => photos.removeAt(index)),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _addPhoto,
+          icon: const Icon(Icons.add_photo_alternate_outlined),
+          label: const Text('Thêm ảnh bằng URL'),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => editing = false),
+                child: const Text('Huỷ'),
+              ),
             ),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có tác phẩm nào',
-              style: TextStyle(
-                color: AppColors.steel,
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => _save(profile),
+                child: const Text('Lưu'),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
-  Widget _buildEditMode() {
-    return SingleChildScrollView(
-      key: const ValueKey('edit'),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundImage: NetworkImage(avatar),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: AppColors.obsidian,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.snow, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: AppColors.snow,
-                            size: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildLabel('Tỉnh / Thành phố'),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _selectedCity,
-                  decoration: _inputDeco(),
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: AppColors.obsidian,
-                  ),
-                  items: ['Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng'].map((
-                    String value,
-                  ) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedCity = val;
-                    });
-                  },
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Giá khởi điểm'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _priceCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDeco(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Năm kinh nghiệm'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _expCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: _inputDeco(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildLabel('Phong cách chụp'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: allStyles.map((s) {
-                    final isSelected = styles.contains(s);
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (isSelected) {
-                            styles.remove(s);
-                          } else {
-                            styles.add(s);
-                          }
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.obsidian
-                              : AppColors.snow,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.obsidian
-                                : AppColors.pebble,
-                          ),
-                        ),
-                        child: Text(
-                          s,
-                          style: TextStyle(
-                            color: isSelected
-                                ? AppColors.snow
-                                : AppColors.steel,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-                _buildLabel('Giới thiệu bản thân'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _bioCtrl,
-                  maxLines: 4,
-                  decoration: _inputDeco(),
-                ),
-              ],
-            ),
-          ).animate().slideY(begin: 0.1, end: 0).fade(),
-          const SizedBox(height: 32),
-          const Text(
-            'Chỉnh sửa Tác phẩm',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildGalleryGrid(true),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
+class _PhotoGrid extends StatelessWidget {
+  const _PhotoGrid({required this.photos, this.onRemove});
+  final List<String> photos;
+  final void Function(int)? onRemove;
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: AppColors.obsidian,
-        fontSize: 14,
-      ),
-    );
-  }
-
-  InputDecoration _inputDeco() {
-    return InputDecoration(
-      filled: true,
-      fillColor: AppColors.mist,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.obsidian, width: 1.5),
-      ),
-    );
-  }
-
-  Widget _buildGalleryGrid(bool isEditMode) {
-    int itemCount = portfolio.length + (isEditMode ? 1 : 0);
+  @override
+  Widget build(BuildContext context) {
+    if (photos.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: Text('Chưa có tác phẩm')),
+        ),
+      );
+    }
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      itemCount: photos.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.8, // Slightly taller images
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.8,
       ),
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        if (isEditMode && index == portfolio.length) {
-          // Add image button
-          return GestureDetector(
-            onTap: () {
-              // Add image logic
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.mist,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.steel.withOpacity(0.5),
-                  style: BorderStyle.solid,
-                  width: 1.5,
-                ),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add, size: 32, color: AppColors.steel),
-                    SizedBox(height: 8),
-                    Text(
-                      'Thêm ảnh',
-                      style: TextStyle(
-                        color: AppColors.steel,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+      itemBuilder: (context, index) => Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Image.network(
+                photos[index],
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const ColoredBox(
+                  color: AppColors.fog,
+                  child: Icon(Icons.broken_image_outlined),
                 ),
               ),
             ),
-          );
-        }
-
-        final imgUrl = portfolio[index];
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.network(imgUrl, fit: BoxFit.cover),
-            ),
-            if (isEditMode)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      portfolio.removeAt(index);
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                  ),
-                ),
+          ),
+          if (onRemove != null)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton.filledTonal(
+                tooltip: 'Xoá ảnh',
+                onPressed: () => onRemove!(index),
+                icon: const Icon(Icons.close),
               ),
-          ],
-        );
-      },
+            ),
+        ],
+      ),
     );
   }
 }

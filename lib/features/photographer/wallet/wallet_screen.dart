@@ -1,156 +1,209 @@
 import 'package:flutter/material.dart';
-import 'package:lens_creator_mobile/core/theme/app_colors.dart';
-import 'package:lens_creator_mobile/core/widgets/outlined_button.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
-import 'widgets/transaction_item.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../domain/booking_rules.dart';
+import '../../../domain/models/models.dart';
+import '../../../providers/data_providers.dart';
+import '../bookings/widgets/studio_booking_card.dart';
+import 'wallet_provider.dart';
 
-class WalletScreen extends StatelessWidget {
+class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    // Mock transactions
-    final transactions = [
-      {
-        'title': 'Nhận tiền - Minh & Lan',
-        'date': 'Hôm nay, 14:30',
-        'amount': '+ 3.500.000đ',
-        'isIncome': true,
-      },
-      {
-        'title': 'Rút tiền về VCB',
-        'date': 'Hôm qua, 09:15',
-        'amount': '- 5.000.000đ',
-        'isIncome': false,
-      },
-      {
-        'title': 'Nhận tiền - Ngoại cảnh',
-        'date': '12/10/2026, 16:00',
-        'amount': '+ 800.000đ',
-        'isIncome': true,
-      },
-      {
-        'title': 'Phí nền tảng T10',
-        'date': '01/10/2026, 00:00',
-        'amount': '- 100.000đ',
-        'isIncome': false,
-      },
-    ];
-
-    return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        backgroundColor: AppColors.mist,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Ví của tôi',
-          style: TextStyle(
-            color: AppColors.obsidian,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+  Future<void> _withdraw(
+    BuildContext context,
+    WidgetRef ref,
+    int balance,
+  ) async {
+    final controller = TextEditingController();
+    final amount = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Rút tiền về ngân hàng'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Số dư khả dụng: ${formatDong(balance)}'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setDialogState(() {}),
+                decoration: const InputDecoration(
+                  labelText: 'Số tiền muốn rút',
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final share in [0.25, 0.5, 1.0])
+                    ActionChip(
+                      label: Text(
+                        share == 1 ? 'Rút hết' : '${(share * 100).round()}%',
+                      ),
+                      onPressed: () => setDialogState(
+                        () => controller.text =
+                            '${((balance * share) / 1000).floor() * 1000}',
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Huỷ'),
+            ),
+            FilledButton(
+              onPressed:
+                  (int.tryParse(controller.text) ?? 0) <= 0 ||
+                      (int.tryParse(controller.text) ?? 0) > balance
+                  ? null
+                  : () => Navigator.pop(context, int.parse(controller.text)),
+              child: const Text('Xác nhận rút'),
+            ),
+          ],
         ),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
+    );
+    controller.dispose();
+    if (amount == null || !context.mounted) return;
+    ref.read(walletProvider.notifier).withdraw(amount);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Đã gửi yêu cầu rút ${formatDong(amount)}')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entries = ref.watch(walletProvider);
+    final balance = entries.fold<int>(0, (sum, item) => sum + item.amount);
+    final bookings = ref.watch(myBookingsProvider);
+    final collaborations = ref.watch(myCollaborationsProvider);
+    final userId = ref.watch(authUserProvider)?.id;
+    final pending = [...bookings, ...collaborations]
+        .where((b) => b.status == BookingStatus.held)
+        .fold<int>(
+          0,
+          (sum, b) =>
+              sum + (userId == null ? 0 : BookingRules.payoutFor(b, userId)),
+        );
+    final now = DateTime.now();
+    final received = entries
+        .where(
+          (entry) =>
+              entry.amount > 0 &&
+              entry.date.year == now.year &&
+              entry.date.month == now.month,
+        )
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    final withdrawn = -entries
+        .where((entry) => entry.amount < 0)
+        .fold<int>(0, (sum, item) => sum + item.amount);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ví của tôi')),
+      body: ListView(
+        padding: AppTokens.pagePadding,
+        children: [
+          Card(
+            color: AppColors.obsidian,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildBalanceCard(context)
-                      .animate()
-                      .fade(duration: 400.ms)
-                      .slideY(begin: 0.1, duration: 400.ms),
-                  const SizedBox(height: 32),
                   const Text(
-                    'Lịch sử giao dịch',
-                    style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                    'Số dư khả dụng',
+                    style: TextStyle(color: AppColors.ash),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formatDong(balance),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ).animate().fade().slideY(begin: 0.1, delay: 100.ms),
+                  ),
                   const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: balance <= 0
+                        ? null
+                        : () => _withdraw(context, ref, balance),
+                    child: const Text('Rút tiền về ngân hàng'),
+                  ),
                 ],
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final t = transactions[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child:
-                      TransactionItem(
-                            title: t['title'] as String,
-                            date: t['date'] as String,
-                            amount: t['amount'] as String,
-                            isIncome: t['isIncome'] as bool,
-                          )
-                          .animate()
-                          .fade(duration: 400.ms, delay: ((index + 2) * 100).ms)
-                          .slideY(begin: 0.1),
-                );
-              }, childCount: transactions.length),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBalanceCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: AppColors.obsidian,
-        borderRadius: BorderRadius.circular(32),
-        gradient: const LinearGradient(
-          colors: [AppColors.obsidian, Color(0xFF27272A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.obsidian.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Tổng số dư',
-            style: TextStyle(
-              color: AppColors.ash,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+          const SizedBox(height: 12),
+          _Stat('Đang chờ giải ngân', formatDong(pending)),
+          _Stat('Đã nhận tháng này', formatDong(received)),
+          _Stat('Đã rút về ngân hàng', formatDong(withdrawn)),
+          const SizedBox(height: 20),
+          Text(
+            'Lịch sử giao dịch',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          const Text(
-            '12.500.000đ',
-            style: TextStyle(
-              color: AppColors.snow,
-              fontSize: 36,
-              fontWeight: FontWeight.w800,
+          if (entries.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Chưa có giao dịch'),
+              ),
             ),
-          ),
-          const SizedBox(height: 32),
-          // We use OutlinedWhiteButton here because it has a white background
-          // which creates high contrast on the dark balance card.
-          OutlinedWhiteButton(text: 'Rút tiền về Ngân hàng', onPressed: () {}),
+          for (final entry in entries)
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  entry.amount >= 0 ? Icons.south_west : Icons.north_east,
+                  color: entry.amount >= 0
+                      ? AppColors.success
+                      : AppColors.steel,
+                ),
+                title: Text(entry.note),
+                subtitle: Text(
+                  DateFormat('dd/MM/yyyy HH:mm').format(entry.date),
+                ),
+                trailing: Text(
+                  '${entry.amount > 0 ? '+' : ''}${formatDong(entry.amount)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: entry.amount >= 0
+                        ? AppColors.success
+                        : AppColors.obsidian,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ListTile(
+      title: Text(
+        label,
+        style: const TextStyle(color: AppColors.steel, fontSize: 13),
+      ),
+      trailing: Text(
+        value,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+  );
 }

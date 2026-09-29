@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
+import 'app_tokens.dart';
 
 class AppTheme {
-  // We use standard Roboto/system font for now as fallback
-  static const String fontFamily = 'Roboto';
-
   static ThemeData get lightTheme {
     final baseTextTheme = GoogleFonts.interTextTheme();
 
@@ -23,6 +21,47 @@ class AppTheme {
         onSecondary: AppColors.snow,
         onSurface: AppColors.ink,
         onError: AppColors.snow,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.snow,
+        foregroundColor: AppColors.obsidian,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.snow,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: AppColors.fog),
+          borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.obsidian,
+          foregroundColor: AppColors.snow,
+          shape: const StadiumBorder(),
+          minimumSize: const Size(0, 44),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: const StadiumBorder(),
+          minimumSize: const Size(0, 44),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.snow,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusInput),
+          borderSide: const BorderSide(color: AppColors.pebble),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       textTheme: baseTextTheme.copyWith(
         displayLarge: baseTextTheme.displayLarge?.copyWith(

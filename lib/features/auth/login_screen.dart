@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/primary_button.dart';
-import '../../core/widgets/surface_card.dart';
-import '../../core/widgets/lens_text_field.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
-import '../../data/mock_database.dart';
+import 'data/mock_auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -18,313 +15,240 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  bool _obscurePassword = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final formKey = GlobalKey<FormState>();
+  final name = TextEditingController();
+  final email = TextEditingController();
+  final password = TextEditingController();
+  bool signup = false;
+  bool obscure = true;
+  bool busy = false;
+  String? error;
 
   @override
   void dispose() {
-    _tabController.dispose();
+    name.dispose();
+    email.dispose();
+    password.dispose();
     super.dispose();
   }
 
-  void _login() {
-    // Mock login action
-    ref.read(authUserProvider.notifier).setUser(MockDatabase.photographerUser);
-    context.go('/photographer_home');
+  Future<void> _submit() async {
+    if (!formKey.currentState!.validate()) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final user = signup
+          ? await mockAuthRepository.register(
+              name.text,
+              email.text,
+              password.text,
+            )
+          : await mockAuthRepository.login(email.text, password.text);
+      if (!mounted) return;
+      if (signup) {
+        ref
+            .read(photographersProvider.notifier)
+            .add(
+              Photographer(
+                id: user.id,
+                name: user.name,
+                avatar: '',
+                cover: '',
+                city: 'Hà Nội',
+                styles: const ['Chân dung'],
+                pricePerSession: 200000,
+                rating: 0,
+                reviewCount: 0,
+                bio: 'Giới thiệu về bạn và phong cách chụp ảnh.',
+                experienceYears: 0,
+                portfolio: const [],
+              ),
+            );
+      }
+      ref.read(authUserProvider.notifier).setUser(user);
+      context.go('/photographer_home');
+    } catch (exception) {
+      if (mounted) {
+        setState(
+          () => error = exception.toString().replaceFirst('Bad state: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.mist,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 40.0,
-            ),
-            child:
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Logo & Title
-                    const Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            LucideIcons.camera,
-                            size: 64,
-                            color: AppColors.obsidian,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Lens Creator',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.obsidian,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Manage your photography business',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppColors.slate,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-
-                    // Auth Card
-                    SurfaceCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          // Custom Tab Bar
-                          Container(
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: AppColors.fog),
-                              ),
-                            ),
-                            child: TabBar(
-                              controller: _tabController,
-                              indicatorColor: AppColors.obsidian,
-                              indicatorWeight: 3,
-                              labelColor: AppColors.obsidian,
-                              unselectedLabelColor: AppColors.ash,
-                              labelStyle: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
-                              tabs: const [
-                                Tab(text: 'Sign In'),
-                                Tab(text: 'Sign Up'),
-                              ],
-                            ),
-                          ),
-
-                          // Tab Content
-                          SizedBox(
-                            height: 380, // Fixed height for content to avoid infinite constraints
-                            child: TabBarView(
-                              controller: _tabController,
-                              children: [_buildLoginTab(), _buildSignUpTab()],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Social Auth
-                    Row(
-                      children: [
-                        const Expanded(child: Divider(color: AppColors.pebble)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR CONTINUE WITH',
-                            style: TextStyle(
-                              color: AppColors.ash,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const Expanded(child: Divider(color: AppColors.pebble)),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildSocialBtn(Icons.apple, 'Apple'),
-                        const SizedBox(width: 16),
-                        _buildSocialBtn(Icons.g_mobiledata, 'Google'),
-                      ],
-                    ),
-                  ],
-                ).animate().fade().slideY(
-                  begin: 0.1,
-                  end: 0,
-                  duration: 400.ms,
-                  curve: Curves.easeOut,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoginTab() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Email Address',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const LensTextField(
-            hintText: 'creator@lens.com',
-            prefixIcon: LucideIcons.mail,
-          ),
-          const SizedBox(height: 20),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 450),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(24),
             children: [
-              const Text(
-                'Password',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.obsidian,
+              const Icon(
+                Icons.camera_alt_outlined,
+                size: 52,
+                color: AppColors.ember,
+              ),
+              const SizedBox(height: 8),
+              const Center(
+                child: Text(
+                  'Lens Studio',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
                 ),
               ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  minimumSize: Size.zero,
-                  padding: EdgeInsets.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  signup ? 'Tạo tài khoản nhiếp ảnh gia' : 'Chào mừng trở lại',
+                  style: const TextStyle(color: AppColors.steel),
                 ),
-                child: const Text(
-                  'Forgot?',
-                  style: TextStyle(
-                    color: AppColors.ember,
-                    fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (signup) ...[
+                          TextFormField(
+                            controller: name,
+                            decoration: const InputDecoration(
+                              labelText: 'Họ và tên',
+                            ),
+                            validator: (value) =>
+                                (value ?? '').trim().length < 2
+                                ? 'Vui lòng nhập họ và tên'
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        TextFormField(
+                          controller: email,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: const InputDecoration(labelText: 'Email'),
+                          validator: (value) =>
+                              RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                  .hasMatch((value ?? '').trim())
+                              ? null
+                              : 'Email không hợp lệ',
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: password,
+                          obscureText: obscure,
+                          autofillHints: [
+                            signup
+                                ? AutofillHints.newPassword
+                                : AutofillHints.password,
+                          ],
+                          decoration: InputDecoration(
+                            labelText: 'Mật khẩu',
+                            suffixIcon: IconButton(
+                              tooltip: obscure
+                                  ? 'Hiện mật khẩu'
+                                  : 'Ẩn mật khẩu',
+                              onPressed: () =>
+                                  setState(() => obscure = !obscure),
+                              icon: Icon(
+                                obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                            ),
+                          ),
+                          validator: (value) {
+                            if ((value ?? '').isEmpty) {
+                              return 'Vui lòng nhập mật khẩu';
+                            }
+                            if (signup && value!.length < 8) {
+                              return 'Mật khẩu cần ít nhất 8 ký tự';
+                            }
+                            return null;
+                          },
+                        ),
+                        if (error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              error!,
+                              style: const TextStyle(
+                                color: AppColors.destructive,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 20),
+                        FilledButton(
+                          onPressed: busy ? null : _submit,
+                          child: Text(
+                            busy
+                                ? 'Đang xử lý...'
+                                : signup
+                                ? 'Tạo tài khoản'
+                                : 'Đăng nhập',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: busy
+                    ? null
+                    : () => setState(() {
+                        signup = !signup;
+                        error = null;
+                      }),
+                child: Text(
+                  signup
+                      ? 'Đã có tài khoản? Đăng nhập'
+                      : 'Chưa có tài khoản? Đăng ký',
+                ),
+              ),
+              if (!signup)
+                Card(
+                  child: Padding(
+                    padding: AppTokens.pagePadding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tài khoản mẫu · Nhiếp ảnh gia',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'nhiepanhgia@lens.vn · demo1234',
+                          style: TextStyle(color: AppColors.steel),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            email.text = 'nhiepanhgia@lens.vn';
+                            password.text = 'demo1234';
+                            error = null;
+                          }),
+                          child: const Text('Điền tài khoản mẫu'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 8),
-          LensTextField(
-            hintText: '••••••••',
-            prefixIcon: LucideIcons.lock,
-            obscureText: _obscurePassword,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
-                color: AppColors.ash,
-              ),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
-            ),
-          ),
-
-          const Spacer(),
-          PrimaryButton(text: 'Sign In', onPressed: _login),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildSignUpTab() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Full Name',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const LensTextField(
-            hintText: 'Studio Name or Your Name',
-            prefixIcon: LucideIcons.user,
-          ),
-          const SizedBox(height: 16),
-
-          const Text(
-            'Email Address',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const LensTextField(
-            hintText: 'creator@lens.com',
-            prefixIcon: LucideIcons.mail,
-          ),
-          const SizedBox(height: 16),
-
-          const Text(
-            'Password',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: AppColors.obsidian,
-            ),
-          ),
-          const SizedBox(height: 8),
-          LensTextField(
-            hintText: 'Create a strong password',
-            prefixIcon: LucideIcons.lock,
-            obscureText: _obscurePassword,
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
-                color: AppColors.ash,
-              ),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
-            ),
-          ),
-
-          const Spacer(),
-          PrimaryButton(text: 'Create Account', onPressed: _login),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSocialBtn(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.pebble),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.obsidian),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: AppColors.obsidian,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 }

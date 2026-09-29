@@ -25,7 +25,7 @@ class BadgeItem extends StatelessWidget {
         color: AppColors.snow,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isUnlocked ? color.withOpacity(0.4) : AppColors.fog,
+          color: isUnlocked ? color.withValues(alpha: 0.4) : AppColors.fog,
           width: 1.5,
         ),
       ),
@@ -35,7 +35,9 @@ class BadgeItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isUnlocked ? color.withOpacity(0.15) : AppColors.mist,
+              color: isUnlocked
+                  ? color.withValues(alpha: 0.15)
+                  : AppColors.mist,
               shape: BoxShape.circle,
             ),
             child: Icon(
