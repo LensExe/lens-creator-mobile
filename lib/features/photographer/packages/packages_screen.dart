@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../providers/data_providers.dart';
-import '../bookings/widgets/studio_booking_card.dart';
+import '../widgets/photographer_app_bar.dart';
+import 'widgets/empty_packages_card.dart';
+import 'widgets/package_card_item.dart';
+import 'widgets/package_policy_card.dart';
 
 class PackagesScreen extends ConsumerWidget {
   const PackagesScreen({super.key});
@@ -14,103 +17,110 @@ class PackagesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Gói dịch vụ')),
+      backgroundColor: AppColors.mist,
+      appBar: const PhotographerAppBar(),
       body: profile == null
           ? const Center(
               child: Text('Vui lòng đăng nhập tài khoản nhiếp ảnh gia'),
             )
-          : ListView(
-              padding: AppTokens.pagePadding,
-              children: [
-                const Text(
-                  'Thiết lập các gói chụp khách có thể chọn khi đặt lịch.',
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  color: const Color(0xFFFFF7ED),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Số lượng ảnh và thời hạn giao là cam kết của buổi chụp. Lịch đã đặt giữ nguyên điều khoản khi bạn sửa gói.',
-                      style: const TextStyle(color: Color(0xFF9A3412)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (profile.packages.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'Chưa có gói dịch vụ. Thêm gói để khách chọn khi đặt lịch.',
-                      ),
-                    ),
-                  ),
-                for (final package in profile.packages)
-                  Card(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-                      onTap: () => context.push(
-                        '/photographer_home/packages/edit/${package.id}',
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    package.name,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
-                                  ),
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Gói dịch vụ',
+                                style: TextStyle(
+                                  color: AppColors.obsidian,
+                                  fontSize: 25,
+                                  height: 1.15,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.6,
                                 ),
-                                const Icon(
-                                  Icons.edit_outlined,
-                                  size: 20,
+                              ),
+                              SizedBox(height: 5),
+                              Text(
+                                'Thiết lập các gói chụp khách có thể chọn khi đặt lịch.',
+                                style: TextStyle(
                                   color: AppColors.steel,
+                                  fontSize: 12,
+                                  height: 1.45,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              package.description,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${package.photoCount} ảnh · ${package.durationHours} giờ · giao trong ${package.deliveryDays} ngày',
-                              style: const TextStyle(
-                                color: AppColors.steel,
-                                fontSize: 12,
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.snow,
+                            borderRadius: BorderRadius.circular(
+                              AppTokens.radiusPill,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              formatDong(package.price),
-                              style: const TextStyle(
-                                color: AppColors.ember,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                              ),
+                            border: Border.all(color: AppColors.fog),
+                          ),
+                          child: Text(
+                            '${profile.packages.length} gói',
+                            style: const TextStyle(
+                              color: AppColors.graphite,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
                             ),
-                          ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 17),
+                    const PackagePolicyCard(),
+                    const SizedBox(height: 15),
+                    if (profile.packages.isEmpty)
+                      const EmptyPackagesCard()
+                    else
+                      for (final package in profile.packages) ...[
+                        PackageCardItem(package: package),
+                        const SizedBox(height: 11),
+                      ],
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: 50,
+                      child: FilledButton.icon(
+                        onPressed: () => context.push(
+                          '/photographer_home/packages/edit/new',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.ember,
+                          foregroundColor: AppColors.snow,
+                          elevation: 1,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add_circle_outline_rounded),
+                        label: const Text(
+                          'Thêm gói dịch vụ mới',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: () =>
-                      context.push('/photographer_home/packages/edit/new'),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Thêm gói dịch vụ'),
+                  ],
                 ),
-              ],
+              ),
             ),
     );
   }
