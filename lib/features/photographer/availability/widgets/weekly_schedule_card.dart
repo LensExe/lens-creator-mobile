@@ -37,19 +37,7 @@ class WeeklyScheduleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final slots = schedule.weekly[selectedWeekday];
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        border: Border.all(color: AppColors.fog),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

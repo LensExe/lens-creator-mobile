@@ -57,7 +57,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 
     if (conversation == null) {
       return const Scaffold(
-        backgroundColor: AppColors.mist,
+        backgroundColor: AppColors.snow,
         body: Center(child: Text('Không tìm thấy hội thoại')),
       );
     }
@@ -72,11 +72,8 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.mist,
+      backgroundColor: AppColors.snow,
       appBar: AppBar(
-        backgroundColor: AppColors.mist,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
         titleSpacing: 0,
         title: Row(
           children: [
@@ -93,7 +90,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.obsidian,
-                      fontSize: 13,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -104,7 +101,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                         : 'Khách hàng',
                     style: const TextStyle(
                       color: AppColors.steel,
-                      fontSize: 9,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -142,7 +139,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                 ? const Center(
                     child: Text(
                       'Chưa có tin nhắn trong cuộc trò chuyện này.',
-                      style: TextStyle(color: AppColors.steel, fontSize: 12),
+                      style: TextStyle(color: AppColors.steel, fontSize: 14),
                     ),
                   )
                 : ListView.builder(

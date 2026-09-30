@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_page_header.dart';
 import '../../../providers/data_providers.dart';
 import '../../../domain/models/models.dart';
 import 'models/photographer_rank.dart';
@@ -60,19 +62,21 @@ class AchievementsScreen extends ConsumerWidget {
         : nextRank.minimumSessions - sessions;
 
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        title: const Text('Thành tựu'),
-        backgroundColor: AppColors.mist,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.snow,
+      appBar: AppBar(title: const Text('Thành tựu')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
+          ),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 5, 16, 28),
             children: [
+              const CreatorPageHeader(
+                title: 'Hành trình sáng tạo',
+                subtitle: 'Cấp bậc và huy hiệu nghề nghiệp của bạn.',
+              ),
+              const SizedBox(height: 20),
               CurrentRankCard(
                 rank: currentRank,
                 sessionsCompleted: sessions,

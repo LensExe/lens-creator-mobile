@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lens_creator_mobile/core/theme/app_colors.dart';
+import 'package:lens_creator_mobile/core/widgets/creator_avatar.dart';
 import 'package:intl/intl.dart';
 
 class Review {
@@ -50,24 +50,10 @@ class ReviewItemWidget extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Avatar
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: AppColors.fog,
-              backgroundImage: review.authorAvatar.isNotEmpty
-                  ? CachedNetworkImageProvider(review.authorAvatar)
-                  : null,
-              child: review.authorAvatar.isEmpty
-                  ? Text(
-                      review.authorName.isNotEmpty
-                          ? review.authorName[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.obsidian,
-                      ),
-                    )
-                  : null,
+            CreatorAvatar(
+              name: review.authorName,
+              imageUrl: review.authorAvatar,
+              size: 40,
             ),
             const SizedBox(width: 12),
             // Content

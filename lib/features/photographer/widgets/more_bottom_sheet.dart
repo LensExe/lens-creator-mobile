@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_list_row.dart';
 import '../../../providers/data_providers.dart';
+import 'more_destinations.dart';
 
 class MoreBottomSheet extends ConsumerWidget {
   const MoreBottomSheet({super.key});
@@ -17,50 +20,47 @@ class MoreBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => Material(
     color: AppColors.snow,
-    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    borderRadius: const BorderRadius.vertical(
+      top: Radius.circular(AppTokens.radiusSheet),
+    ),
     child: SafeArea(
       child: ListView(
         shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 25),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Text(
-              'Lens Studio',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.pebble,
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+              ),
             ),
           ),
-          _item(
-            context,
-            'Lịch làm việc',
-            Icons.calendar_month_outlined,
-            'availability',
+          const SizedBox(height: 20),
+          const Text(
+            'Quản lý Studio',
+            style: TextStyle(
+              color: AppColors.obsidian,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          _item(
-            context,
-            'Hồ sơ năng lực',
-            Icons.photo_library_outlined,
-            'portfolio',
-          ),
-          _item(context, 'Lưu trữ ảnh', Icons.cloud_outlined, 'storage'),
-          _item(
-            context,
-            'Thành tựu',
-            Icons.emoji_events_outlined,
-            'achievements',
-          ),
-          _item(context, 'Trợ lý AI', Icons.auto_awesome_outlined, 'assistant'),
-          _item(
-            context,
-            'Ví của tôi',
-            Icons.account_balance_wallet_outlined,
-            'wallet',
-          ),
-          _item(context, 'Cài đặt', Icons.settings_outlined, 'settings'),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.destructive),
-            title: const Text('Đăng xuất'),
+          const SizedBox(height: 10),
+          for (final destination in creatorMoreDestinations) ...[
+            CreatorListRow(
+              icon: destination.icon,
+              title: destination.label,
+              onTap: () => _open(context, destination.path),
+            ),
+            const Divider(),
+          ],
+          const SizedBox(height: 12),
+          CreatorListRow(
+            icon: Icons.logout_rounded,
+            title: 'Đăng xuất',
+            trailing: const SizedBox.shrink(),
             onTap: () {
               final router = GoRouter.of(context);
               Navigator.pop(context);
@@ -71,17 +71,5 @@ class MoreBottomSheet extends ConsumerWidget {
         ],
       ),
     ),
-  );
-
-  Widget _item(
-    BuildContext context,
-    String title,
-    IconData icon,
-    String suffix,
-  ) => ListTile(
-    leading: Icon(icon, color: AppColors.obsidian),
-    title: Text(title),
-    trailing: const Icon(Icons.chevron_right, size: 18),
-    onTap: () => _open(context, '/photographer_home/$suffix'),
   );
 }

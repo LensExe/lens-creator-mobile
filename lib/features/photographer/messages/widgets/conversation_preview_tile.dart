@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
 import '../conversation_provider.dart';
 import 'conversation_avatar.dart';
 
@@ -23,25 +22,10 @@ class ConversationPreviewTile extends StatelessWidget {
 
     return Material(
       color: AppColors.snow,
-      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        child: Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-            border: Border.all(
-              color: hasUnread ? const Color(0xFFFFD9C5) : AppColors.fog,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x06000000),
-                blurRadius: 12,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(
             children: [
               ConversationAvatar(
@@ -63,7 +47,7 @@ class ConversationPreviewTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppColors.obsidian,
-                              fontSize: 13,
+                              fontSize: 15,
                               fontWeight: hasUnread
                                   ? FontWeight.w800
                                   : FontWeight.w700,
@@ -77,7 +61,7 @@ class ConversationPreviewTile extends StatelessWidget {
                               : DateFormat('HH:mm').format(lastMessage.sentAt),
                           style: TextStyle(
                             color: hasUnread ? AppColors.ember : AppColors.ash,
-                            fontSize: 9,
+                            fontSize: 11,
                             fontWeight: hasUnread
                                 ? FontWeight.w700
                                 : FontWeight.w500,
@@ -92,7 +76,7 @@ class ConversationPreviewTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: hasUnread ? AppColors.graphite : AppColors.steel,
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: hasUnread
                             ? FontWeight.w600
                             : FontWeight.w400,

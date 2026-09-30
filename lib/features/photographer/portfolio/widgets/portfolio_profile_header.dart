@@ -20,13 +20,6 @@ class PortfolioProfileHeader extends StatelessWidget {
     decoration: BoxDecoration(
       color: AppColors.graphite,
       borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x10000000),
-          blurRadius: 15,
-          offset: Offset(0, 5),
-        ),
-      ],
     ),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(AppTokens.radiusCard),

@@ -34,7 +34,6 @@ class AchievementRankSection extends StatelessWidget {
               ? RankTileState.current
               : RankTileState.upcoming,
         ),
-        if (index < ranks.length - 1) const SizedBox(height: 8),
       ],
     ],
   );

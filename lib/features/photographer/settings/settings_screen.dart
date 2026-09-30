@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_avatar.dart';
+import '../../../core/widgets/creator_list_row.dart';
 import '../../../providers/data_providers.dart';
 import '../../../domain/models/models.dart';
 
@@ -91,37 +93,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       initialized = true;
     }
     return Scaffold(
+      backgroundColor: AppColors.snow,
       appBar: AppBar(title: const Text('Cài đặt')),
-      body: ListView(
-        padding: AppTokens.pagePadding,
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final (index, label) in const [
-                  'Hồ sơ',
-                  'Tài khoản',
-                  'Thông báo',
-                ].indexed) ...[
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: tab == index,
-                    onSelected: (_) => setState(() => tab = index),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ],
-            ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
           ),
-          const SizedBox(height: 16),
-          if (tab == 0)
-            _profile(user)
-          else if (tab == 1)
-            _account(user)
-          else
-            _notifications(),
-        ],
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final (index, label) in const [
+                      'Hồ sơ',
+                      'Tài khoản',
+                      'Thông báo',
+                    ].indexed) ...[
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: tab == index,
+                        onSelected: (_) => setState(() => tab = index),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (tab == 0)
+                _profile(user)
+              else if (tab == 1)
+                _account(user)
+              else
+                _notifications(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -131,20 +141,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(user.name, style: Theme.of(context).textTheme.titleMedium),
-                Text(
-                  user.email,
-                  style: const TextStyle(color: AppColors.steel),
-                ),
-              ],
+        Row(
+          children: [
+            CreatorAvatar(name: user.name, size: 48),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    user.email,
+                    style: const TextStyle(color: AppColors.steel),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
         const SizedBox(height: 8),
         OutlinedButton(
@@ -210,31 +226,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _account(User user) => Column(
     children: [
-      Card(
-        child: ListTile(
-          title: const Text('Email đăng nhập'),
-          subtitle: Text(user.email),
-          trailing: const Icon(
-            Icons.verified_outlined,
-            color: AppColors.success,
-          ),
-        ),
+      CreatorListRow(
+        icon: Icons.alternate_email_rounded,
+        title: 'Email đăng nhập',
+        subtitle: user.email,
+        trailing: const Icon(Icons.verified_outlined, color: AppColors.success),
       ),
-      const Card(
-        child: ListTile(
-          title: Text('Loại tài khoản'),
-          subtitle: Text('Nhiếp ảnh gia'),
-        ),
+      const Divider(),
+      const CreatorListRow(
+        icon: Icons.badge_outlined,
+        title: 'Loại tài khoản',
+        subtitle: 'Nhiếp ảnh gia',
+        trailing: SizedBox.shrink(),
       ),
-      Card(
-        child: ListTile(
-          title: const Text('Đăng xuất'),
-          leading: const Icon(Icons.logout),
-          onTap: () {
-            ref.read(authUserProvider.notifier).setUser(null);
-            context.go('/login');
-          },
-        ),
+      const Divider(),
+      CreatorListRow(
+        icon: Icons.logout_rounded,
+        title: 'Đăng xuất',
+        onTap: () {
+          ref.read(authUserProvider.notifier).setUser(null);
+          context.go('/login');
+        },
       ),
     ],
   );
@@ -259,20 +271,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'Tóm tắt hoạt động trong tuần.',
       ),
     ];
-    return Card(
-      child: Column(
-        children: [
-          for (final (key, label, hint) in options)
-            SwitchListTile(
-              title: Text(label),
-              subtitle: Text(hint),
-              value: values[key] ?? false,
-              onChanged: (value) => ref
-                  .read(notificationSettingsProvider.notifier)
-                  .set(key, value),
-            ),
+    return Column(
+      children: [
+        for (final (key, label, hint) in options) ...[
+          SwitchListTile(
+            title: Text(label),
+            subtitle: Text(hint),
+            value: values[key] ?? false,
+            onChanged: (value) =>
+                ref.read(notificationSettingsProvider.notifier).set(key, value),
+          ),
+          const Divider(),
         ],
-      ),
+      ],
     );
   }
 }

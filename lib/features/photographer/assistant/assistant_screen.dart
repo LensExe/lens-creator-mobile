@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_section_header.dart';
 import 'assistant_provider.dart';
 
 class AssistantScreen extends ConsumerStatefulWidget {
@@ -75,93 +76,96 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       initialized = true;
     }
     return Scaffold(
+      backgroundColor: AppColors.snow,
       appBar: AppBar(title: const Text('Trợ lý AI')),
-      body: ListView(
-        padding: AppTokens.pagePadding,
-        children: [
-          const Text(
-            'Cung cấp thông tin để trợ lý trả lời khách trong phạm vi dữ liệu này. Khiếu nại, huỷ và tranh chấp tiền phải chuyển cho bạn.',
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: enabled,
-                    title: const Text('Kích hoạt trợ lý'),
-                    onChanged: (value) => setState(() => enabled = value),
-                  ),
-                  _Field('Giá & dịch vụ', services),
-                  _Field('Phong cách', style),
-                  _Field('Khu vực hoạt động', area),
-                  _Field('Giọng điệu', tone),
-                  Text(
-                    'Câu hỏi thường gặp',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  for (final (index, pair) in faqs.indexed)
-                    Card(
-                      color: AppColors.mist,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: pair.$1,
-                              decoration: const InputDecoration(
-                                labelText: 'Câu hỏi',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: pair.$2,
-                              minLines: 2,
-                              maxLines: 4,
-                              decoration: const InputDecoration(
-                                labelText: 'Câu trả lời',
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: () => setState(() {
-                                  final removed = faqs.removeAt(index);
-                                  removed.$1.dispose();
-                                  removed.$2.dispose();
-                                }),
-                                icon: const Icon(Icons.delete_outline),
-                                label: const Text('Xoá'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  OutlinedButton.icon(
-                    onPressed: () => setState(
-                      () => faqs.add((
-                        TextEditingController(),
-                        TextEditingController(),
-                      )),
-                    ),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Thêm câu hỏi'),
-                  ),
-                ],
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 17, 16, 32),
+            children: [
+              const Text(
+                'Cung cấp thông tin để trợ lý trả lời khách trong phạm vi dữ liệu này. Khiếu nại, huỷ và tranh chấp tiền phải chuyển cho bạn.',
+                style: TextStyle(
+                  color: AppColors.steel,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
               ),
-            ),
+              const SizedBox(height: 18),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: enabled,
+                title: const Text('Kích hoạt trợ lý'),
+                onChanged: (value) => setState(() => enabled = value),
+              ),
+              const Divider(),
+              const SizedBox(height: 23),
+              const CreatorSectionHeader(title: 'Thông tin trả lời'),
+              const SizedBox(height: 14),
+              _Field('Giá & dịch vụ', services),
+              _Field('Phong cách', style),
+              _Field('Khu vực hoạt động', area),
+              _Field('Giọng điệu', tone),
+              const SizedBox(height: 17),
+              const CreatorSectionHeader(title: 'Câu hỏi thường gặp'),
+              const SizedBox(height: 14),
+              for (final (index, pair) in faqs.indexed) ...[
+                Text(
+                  'Câu hỏi ${index + 1}',
+                  style: const TextStyle(
+                    color: AppColors.obsidian,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: pair.$1,
+                  decoration: const InputDecoration(labelText: 'Câu hỏi'),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: pair.$2,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Câu trả lời'),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() {
+                      final removed = faqs.removeAt(index);
+                      removed.$1.dispose();
+                      removed.$2.dispose();
+                    }),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Xoá'),
+                  ),
+                ),
+                const Divider(),
+                const SizedBox(height: 12),
+              ],
+              OutlinedButton.icon(
+                onPressed: () => setState(
+                  () => faqs.add((
+                    TextEditingController(),
+                    TextEditingController(),
+                  )),
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Thêm câu hỏi'),
+              ),
+              const SizedBox(height: 25),
+              FilledButton(
+                onPressed: _save,
+                child: const Text('Lưu dữ liệu trợ lý'),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Lưu dữ liệu trợ lý'),
-          ),
-        ],
+        ),
       ),
     );
   }

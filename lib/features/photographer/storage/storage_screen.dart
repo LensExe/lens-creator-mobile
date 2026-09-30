@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_page_header.dart';
+import '../../../core/widgets/creator_section_header.dart';
 import 'storage_provider.dart';
 import 'widgets/storage_empty_state.dart';
 import 'widgets/storage_filter_tabs.dart';
@@ -48,28 +50,21 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
         .length;
 
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        title: const Text('Lưu trữ ảnh'),
-        backgroundColor: AppColors.mist,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.snow,
+      appBar: AppBar(title: const Text('Lưu trữ ảnh')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
+          ),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
             children: [
-              const Text(
-                'Quản lý dung lượng, bộ sưu tập đã giao và thời hạn lưu ảnh.',
-                style: TextStyle(
-                  color: AppColors.steel,
-                  fontSize: 12,
-                  height: 1.45,
-                ),
+              const CreatorPageHeader(
+                title: 'Thư viện đã giao',
+                subtitle: 'Dung lượng và thời hạn lưu ảnh của từng bộ sưu tập.',
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
               StorageUsageCard(
                 plan: plan,
                 usedBytes: usedBytes,
@@ -77,7 +72,7 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
                 galleryCount: galleries.length,
               ),
               const SizedBox(height: 22),
-              const _StorageSectionHeading(
+              const CreatorSectionHeader(
                 title: 'Gói lưu trữ',
                 subtitle: 'Dung lượng và thời hạn theo từng gói.',
               ),
@@ -114,28 +109,17 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Expanded(
-                    child: _StorageSectionHeading(
+                    child: CreatorSectionHeader(
                       title: 'Bộ sưu tập đã giao',
                       subtitle: 'Ảnh đã bàn giao cho khách hàng.',
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.snow,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                      border: Border.all(color: AppColors.fog),
-                    ),
-                    child: Text(
-                      '${visible.length}/${galleries.length}',
-                      style: const TextStyle(
-                        color: AppColors.graphite,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  Text(
+                    '${visible.length}/${galleries.length}',
+                    style: const TextStyle(
+                      color: AppColors.graphite,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -160,7 +144,7 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
               else
                 for (final gallery in visible) ...[
                   StorageGalleryCard(gallery: gallery),
-                  const SizedBox(height: 9),
+                  const Divider(height: 1),
                 ],
             ],
           ),
@@ -168,31 +152,4 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
       ),
     );
   }
-}
-
-class _StorageSectionHeading extends StatelessWidget {
-  const _StorageSectionHeading({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.obsidian,
-          fontSize: 15,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      const SizedBox(height: 3),
-      Text(
-        subtitle,
-        style: const TextStyle(color: AppColors.steel, fontSize: 10),
-      ),
-    ],
-  );
 }

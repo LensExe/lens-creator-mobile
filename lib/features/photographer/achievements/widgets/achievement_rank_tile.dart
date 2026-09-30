@@ -31,11 +31,6 @@ class AchievementRankTile extends StatelessWidget {
     final isCurrent = state == RankTileState.current;
     final isAchieved = state == RankTileState.achieved;
     final isTarget = state == RankTileState.upcoming;
-    final background = isCurrent
-        ? const Color(0xFFFFF2EA)
-        : isTarget
-        ? const Color(0xFFFFFBF7)
-        : AppColors.snow;
     final accent = isCurrent || isAchieved ? AppColors.ember : AppColors.steel;
     final stateLabel = isCurrent
         ? 'Hiện tại'
@@ -46,17 +41,9 @@ class AchievementRankTile extends StatelessWidget {
         : 'Chưa đạt';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(AppTokens.radiusInput),
-        border: Border.all(
-          color: isCurrent
-              ? AppColors.ember.withValues(alpha: 0.35)
-              : isTarget
-              ? const Color(0xFFF2D6C7)
-              : AppColors.fog,
-        ),
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.fog)),
       ),
       child: Row(
         children: [
@@ -82,7 +69,7 @@ class AchievementRankTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isCurrent ? AppColors.ember : AppColors.obsidian,
-                    fontSize: 12,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -93,7 +80,7 @@ class AchievementRankTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: AppColors.steel,
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -119,7 +106,7 @@ class AchievementRankTile extends StatelessWidget {
                     : isTarget
                     ? AppColors.ember
                     : AppColors.steel,
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),

@@ -111,7 +111,7 @@ class PortfolioEditorForm extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 28),
         _EditorSection(
           title: 'Phong cách chụp',
           subtitle: 'Chọn ít nhất một phong cách bạn cung cấp.',
@@ -129,7 +129,7 @@ class PortfolioEditorForm extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 28),
         _EditorSection(
           title: 'Giới thiệu',
           subtitle: 'Chia sẻ ngắn gọn về phong cách và kinh nghiệm của bạn.',
@@ -144,7 +144,7 @@ class PortfolioEditorForm extends StatelessWidget {
                 (value ?? '').trim().isEmpty ? 'Nhập giới thiệu' : null,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 28),
         _EditorSection(
           title: 'Tác phẩm',
           subtitle: 'Khuyến nghị khoảng 12 ảnh đã hậu kỳ.',
@@ -224,61 +224,45 @@ class _EditorSection extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: AppColors.snow,
-      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-      border: Border.all(color: AppColors.fog),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 31,
-              height: 31,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0E8),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: AppColors.ember, size: 16),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Icon(icon, color: AppColors.ember, size: 19),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.obsidian,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.steel,
-                      fontSize: 9,
-                      height: 1.3,
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.steel,
+                    fontSize: 12,
+                    height: 1.3,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            if (trailing != null) ...[const SizedBox(width: 7), trailing!],
-          ],
-        ),
-        const SizedBox(height: 13),
-        child,
-      ],
-    ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 7), trailing!],
+        ],
+      ),
+      const SizedBox(height: 16),
+      child,
+    ],
   );
 }
 

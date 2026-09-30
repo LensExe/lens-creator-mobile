@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
 
 class ProfessionalBadgeCard extends StatelessWidget {
   const ProfessionalBadgeCard({
@@ -17,11 +16,9 @@ class ProfessionalBadgeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(13),
-    decoration: BoxDecoration(
-      color: AppColors.snow,
-      borderRadius: BorderRadius.circular(AppTokens.radiusInput),
-      border: Border.all(color: AppColors.fog),
+    padding: const EdgeInsets.symmetric(vertical: 15),
+    decoration: const BoxDecoration(
+      border: Border(bottom: BorderSide(color: AppColors.fog)),
     ),
     child: Row(
       children: [
@@ -43,7 +40,7 @@ class ProfessionalBadgeCard extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: AppColors.obsidian,
-                  fontSize: 12,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -52,7 +49,7 @@ class ProfessionalBadgeCard extends StatelessWidget {
                 description,
                 style: const TextStyle(
                   color: AppColors.steel,
-                  fontSize: 10,
+                  fontSize: 12,
                   height: 1.35,
                 ),
               ),

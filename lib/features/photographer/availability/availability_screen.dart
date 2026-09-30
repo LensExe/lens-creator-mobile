@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../providers/data_providers.dart';
 import '../widgets/photographer_app_bar.dart';
 import 'schedule_provider.dart';
@@ -156,7 +157,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.mist,
+        backgroundColor: AppColors.snow,
         appBar: PhotographerAppBar(
           actions: [
             IconButton(
@@ -171,7 +172,9 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
             : null,
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+            constraints: const BoxConstraints(
+              maxWidth: AppTokens.contentMaxWidth,
+            ),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 17, 16, 26),
               children: [
@@ -195,13 +198,6 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                   ),
                 ),
                 const SizedBox(height: 17),
-                AvailabilityOverview(
-                  weeklyHours: _hoursLabel(weeklySlots),
-                  upcomingBookings: upcomingBookings,
-                  busySlots: busySlotCount,
-                  openDays: openDays,
-                ),
-                const SizedBox(height: 20),
                 WeeklyScheduleCard(
                   schedule: schedule,
                   selectedWeekday: selectedWeekday,
@@ -224,7 +220,10 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                     if (!cells.add(slot)) cells.remove(slot);
                   }),
                 ),
-                const SizedBox(height: 13),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 22),
+                  child: Divider(height: 1),
+                ),
                 DayScheduleCard(
                   date: selected,
                   bookings: bookingsOnDay,
@@ -248,6 +247,13 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                     if (!cells.add(slot)) cells.remove(slot);
                     if (cells.isEmpty) next.busy.remove(key);
                   }),
+                ),
+                const SizedBox(height: 27),
+                AvailabilityOverview(
+                  weeklyHours: _hoursLabel(weeklySlots),
+                  upcomingBookings: upcomingBookings,
+                  busySlots: busySlotCount,
+                  openDays: openDays,
                 ),
                 if (dirty) ...[
                   const SizedBox(height: 12),

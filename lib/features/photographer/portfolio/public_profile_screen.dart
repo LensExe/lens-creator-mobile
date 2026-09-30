@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_empty_state.dart';
+import '../../../core/widgets/creator_list_row.dart';
+import '../../../core/widgets/creator_media_surface.dart';
 import '../../../providers/data_providers.dart';
-import '../bookings/widgets/studio_booking_card.dart';
+import '../bookings/widgets/studio_booking_card.dart' show formatDong;
 
 class PublicProfileScreen extends ConsumerWidget {
   const PublicProfileScreen({super.key});
@@ -19,78 +22,96 @@ class PublicProfileScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Xem hồ sơ công khai')),
-        body: ListView(
-          padding: AppTokens.pagePadding,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-              child: profile.cover.isEmpty
-                  ? const SizedBox(
-                      height: 160,
-                      child: ColoredBox(
-                        color: AppColors.fog,
-                        child: Icon(Icons.photo_outlined),
-                      ),
-                    )
-                  : Image.network(
-                      profile.cover,
-                      height: 160,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const SizedBox(
-                        height: 160,
-                        child: ColoredBox(
-                          color: AppColors.fog,
-                          child: Icon(Icons.photo_outlined),
+        backgroundColor: AppColors.snow,
+        appBar: AppBar(
+          title: const Text('Xem hồ sơ công khai'),
+          actions: [
+            IconButton(
+              tooltip: 'Chỉnh sửa hồ sơ',
+              onPressed: () => context.push('/photographer_home/portfolio'),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+          ],
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppTokens.contentMaxWidth,
+            ),
+            child: NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: AppTokens.pagePadding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CreatorMediaSurface(
+                          imageUrl: profile.cover,
+                          height: 180,
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        Text(
+                          profile.name,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${profile.city} · ${profile.experienceYears} năm kinh nghiệm',
+                          style: const TextStyle(
+                            color: AppColors.steel,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${profile.rating.toStringAsFixed(1)} ★ · ${profile.reviewCount} đánh giá',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        if (profile.styles.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 7,
+                            children: [
+                              for (final style in profile.styles)
+                                Chip(label: Text(style)),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Text(
+                          'Giá từ ${formatDong(profile.pricePerSession)}',
+                          style: const TextStyle(
+                            color: AppColors.ember,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                     ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              profile.name,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${profile.city} · ${profile.experienceYears} năm kinh nghiệm',
-              style: const TextStyle(color: AppColors.steel),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${profile.rating.toStringAsFixed(1)} ★ · ${profile.reviewCount} đánh giá',
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final style in profile.styles) Chip(label: Text(style)),
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: TabBar(
+                    tabs: [
+                      Tab(text: 'Tác phẩm'),
+                      Tab(text: 'Giới thiệu'),
+                      Tab(text: 'Đánh giá'),
+                    ],
+                  ),
+                ),
               ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Giá từ ${formatDong(profile.pricePerSession)}',
-              style: const TextStyle(
-                color: AppColors.ember,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const TabBar(
-              tabs: [
-                Tab(text: 'Tác phẩm'),
-                Tab(text: 'Giới thiệu'),
-                Tab(text: 'Đánh giá'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 420,
-              child: TabBarView(
+              body: TabBarView(
                 children: [
                   profile.portfolio.isEmpty
-                      ? const Center(child: Text('Chưa có tác phẩm'))
+                      ? const CreatorEmptyState(
+                          icon: Icons.photo_library_outlined,
+                          title: 'Chưa có tác phẩm',
+                        )
                       : GridView.builder(
+                          padding: AppTokens.pagePadding,
                           itemCount: profile.portfolio.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
@@ -99,36 +120,35 @@ class PublicProfileScreen extends ConsumerWidget {
                                 mainAxisSpacing: 8,
                                 childAspectRatio: 0.8,
                               ),
-                          itemBuilder: (context, index) => ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
-                              profile.portfolio[index],
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const ColoredBox(
-                                color: AppColors.fog,
-                                child: Icon(Icons.broken_image_outlined),
-                              ),
-                            ),
+                          itemBuilder: (context, index) => CreatorMediaSurface(
+                            imageUrl: profile.portfolio[index],
+                            radius: 14,
+                            placeholderIcon: Icons.broken_image_outlined,
                           ),
                         ),
                   ListView(
+                    padding: AppTokens.pagePadding,
                     children: [
-                      Text(profile.bio),
-                      const SizedBox(height: 20),
+                      Text(
+                        profile.bio,
+                        style: const TextStyle(fontSize: 14, height: 1.5),
+                      ),
+                      const SizedBox(height: 24),
                       Text(
                         'Gói dịch vụ',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      for (final package in profile.packages)
-                        Card(
-                          child: ListTile(
-                            title: Text(package.name),
-                            subtitle: Text(
+                      const SizedBox(height: 8),
+                      for (final package in profile.packages) ...[
+                        CreatorListRow(
+                          icon: Icons.camera_alt_outlined,
+                          title: package.name,
+                          subtitle:
                               '${package.photoCount} ảnh · ${package.durationHours} giờ · giao ${package.deliveryDays} ngày',
-                            ),
-                            trailing: Text(formatDong(package.price)),
-                          ),
+                          trailing: Text(formatDong(package.price)),
                         ),
+                        const Divider(height: 1),
+                      ],
                     ],
                   ),
                   Center(
@@ -138,7 +158,7 @@ class PublicProfileScreen extends ConsumerWidget {
                         Text(
                           '${profile.rating.toStringAsFixed(1)} ★ · ${profile.reviewCount} đánh giá',
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         OutlinedButton(
                           onPressed: () =>
                               context.push('/photographer_home/reviews'),
@@ -150,12 +170,7 @@ class PublicProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => context.push('/photographer_home/portfolio'),
-              child: const Text('Chỉnh sửa hồ sơ'),
-            ),
-          ],
+          ),
         ),
       ),
     );

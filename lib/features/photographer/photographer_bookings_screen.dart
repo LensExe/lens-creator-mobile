@@ -4,10 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/creator_empty_state.dart';
+import '../../core/widgets/creator_page_header.dart';
+import '../../core/widgets/creator_section_header.dart';
+import '../../core/widgets/creator_summary_strip.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 import 'bookings/widgets/booking_group_tabs.dart';
-import 'bookings/widgets/booking_kpi_card.dart';
 import 'bookings/widgets/booking_management_card.dart';
 import 'bookings/widgets/collaboration_invites.dart';
 import 'widgets/photographer_app_bar.dart';
@@ -74,7 +77,7 @@ class _PhotographerBookingsScreenState
   Widget build(BuildContext context) {
     final bookingsState = ref.watch(incomingBookingsProvider);
     return Scaffold(
-      backgroundColor: AppColors.mist,
+      backgroundColor: AppColors.snow,
       appBar: PhotographerAppBar(
         actions: [
           IconButton(
@@ -172,106 +175,20 @@ class _PhotographerBookingsScreenState
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: const BoxConstraints(
+                maxWidth: AppTokens.contentMaxWidth,
+              ),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
                 children: [
-                  const Text(
-                    'Quản lý đặt lịch',
-                    style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 25,
-                      height: 1.15,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
-                    ),
+                  CreatorPageHeader(
+                    title: 'Lịch đặt',
+                    subtitle: pending + due > 0
+                        ? '$pending yêu cầu chờ duyệt · $due buổi cần giao ảnh'
+                        : 'Theo dõi các buổi chụp và tiến độ bàn giao.',
                   ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'Theo dõi và xử lý các buổi chụp của bạn.',
-                    style: TextStyle(
-                      color: AppColors.steel,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 17),
                   const CollaborationInvites(),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final tileWidth = (constraints.maxWidth - 12) / 2;
-                      return GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: tileWidth / 98,
-                        children: [
-                          BookingKpiCard(
-                            label: 'Chờ duyệt',
-                            value: pending,
-                            caption: 'Yêu cầu mới',
-                            icon: Icons.mark_email_unread_outlined,
-                            accent: AppColors.ember,
-                            tint: const Color(0xFFFFEEE5),
-                          ),
-                          BookingKpiCard(
-                            label: 'Tuần này',
-                            value: upcoming,
-                            caption: 'Lịch sắp tới',
-                            icon: Icons.calendar_today_outlined,
-                            accent: const Color(0xFF3E6E9E),
-                            tint: const Color(0xFFEAF2FA),
-                          ),
-                          BookingKpiCard(
-                            label: 'Cần giao ảnh',
-                            value: due,
-                            caption: 'Chờ bàn giao',
-                            icon: Icons.photo_library_outlined,
-                            accent: const Color(0xFF8059D6),
-                            tint: const Color(0xFFF0ECFF),
-                          ),
-                          BookingKpiCard(
-                            label: 'Hoàn thành',
-                            value: completed,
-                            caption: 'Đã hoàn tất',
-                            icon: Icons.task_alt_rounded,
-                            accent: const Color(0xFF16865A),
-                            tint: const Color(0xFFE7F6EF),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  if (pending + due > 0) ...[
-                    const SizedBox(height: 15),
-                    _AttentionBanner(pending: pending, due: due),
-                  ],
-                  const SizedBox(height: 25),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Lịch chụp của bạn',
-                          style: TextStyle(
-                            color: AppColors.obsidian,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${filtered.length} lịch',
-                        style: const TextStyle(
-                          color: AppColors.ash,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 11),
                   BookingGroupTabs(
                     selectedIndex: _BookingGroup.values.indexOf(group),
                     onSelected: (index) =>
@@ -283,46 +200,16 @@ class _PhotographerBookingsScreenState
                       BookingGroupTab('Đã huỷ', cancelled),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
                         child: TextField(
                           onChanged: (value) => setState(() => query = value),
-                          decoration: InputDecoration(
+                          decoration: const InputDecoration(
                             hintText: 'Tìm tên khách, mã lịch...',
-                            hintStyle: const TextStyle(
-                              color: AppColors.ash,
-                              fontSize: 12,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              size: 19,
-                            ),
+                            prefixIcon: Icon(Icons.search_rounded, size: 20),
                             prefixIconColor: AppColors.ash,
-                            filled: true,
-                            fillColor: AppColors.snow,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(13),
-                              borderSide: const BorderSide(
-                                color: AppColors.fog,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(13),
-                              borderSide: const BorderSide(
-                                color: AppColors.fog,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(13),
-                              borderSide: const BorderSide(
-                                color: AppColors.ember,
-                              ),
-                            ),
                           ),
                         ),
                       ),
@@ -333,18 +220,35 @@ class _PhotographerBookingsScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 13),
+                  const SizedBox(height: 22),
+                  CreatorSectionHeader(
+                    title: 'Buổi chụp',
+                    count: filtered.length,
+                  ),
+                  const SizedBox(height: 4),
                   if (filtered.isEmpty)
-                    const _EmptyBookings()
+                    const CreatorEmptyState(
+                      icon: Icons.event_busy_outlined,
+                      title: 'Không có lịch chụp phù hợp',
+                    )
                   else
-                    for (final booking in filtered) ...[
+                    for (final booking in filtered)
                       BookingManagementCard(
                         booking: booking,
                         busy: decidingId == booking.id,
                         onDecide: (status) => _decide(booking, status),
                       ),
-                      const SizedBox(height: 10),
+                  const SizedBox(height: 26),
+                  const CreatorSectionHeader(title: 'Tổng quan'),
+                  const SizedBox(height: 12),
+                  CreatorSummaryStrip(
+                    items: [
+                      CreatorSummaryItem('Chờ duyệt', '$pending'),
+                      CreatorSummaryItem('Tuần này', '$upcoming'),
+                      CreatorSummaryItem('Cần giao ảnh', '$due'),
+                      CreatorSummaryItem('Hoàn thành', '$completed'),
                     ],
+                  ),
                 ],
               ),
             ),
@@ -353,55 +257,6 @@ class _PhotographerBookingsScreenState
       ),
     );
   }
-}
-
-class _AttentionBanner extends StatelessWidget {
-  const _AttentionBanner({required this.pending, required this.due});
-
-  final int pending;
-  final int due;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF5EB),
-      borderRadius: BorderRadius.circular(AppTokens.radiusInput),
-      border: Border.all(color: const Color(0xFFFFE0C2)),
-    ),
-    child: Row(
-      children: [
-        const Icon(
-          Icons.notifications_active_outlined,
-          size: 18,
-          color: Color(0xFFB45C16),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              style: const TextStyle(
-                color: Color(0xFF8F4C16),
-                fontSize: 11,
-                height: 1.35,
-              ),
-              children: [
-                TextSpan(
-                  text: '$pending yêu cầu chờ duyệt',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const TextSpan(text: '  ·  '),
-                TextSpan(
-                  text: '$due buổi cần giao ảnh',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 class _DateScopeDropdown extends StatelessWidget {
@@ -439,36 +294,6 @@ class _DateScopeDropdown extends StatelessWidget {
           if (value != null) onChanged(value);
         },
       ),
-    ),
-  );
-}
-
-class _EmptyBookings extends StatelessWidget {
-  const _EmptyBookings();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(top: 2),
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-    decoration: BoxDecoration(
-      color: AppColors.snow,
-      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-      border: Border.all(color: AppColors.fog),
-    ),
-    child: const Column(
-      children: [
-        Icon(Icons.event_busy_outlined, size: 30, color: AppColors.ash),
-        SizedBox(height: 9),
-        Text(
-          'Không có lịch chụp phù hợp',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.graphite,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     ),
   );
 }

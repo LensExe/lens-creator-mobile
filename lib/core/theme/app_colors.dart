@@ -12,6 +12,9 @@ class AppColors {
   static const Color mist = Color(0xFFF4F4F5);
   static const Color snow = Color(0xFFFFFFFF);
   static const Color ember = Color(0xFFFF5A00); // MÀU THƯƠNG HIỆU
+  static const Color emberSoft = Color(0xFFFFF0E8);
+  static const Color successSoft = Color(0xFFE9F6EF);
+  static const Color warningSoft = Color(0xFFFFF4E5);
   static const Color orchidFlash = Color(0xFFFE45E2);
 
   // --- Semantic (Alerts/Status) ---

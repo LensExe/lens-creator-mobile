@@ -54,24 +54,11 @@ class StorageGalleryCard extends StatelessWidget {
     final deliveredDate = DateFormat('dd/MM/yyyy').format(gallery.deliveredAt);
     return Material(
       color: AppColors.snow,
-      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
       child: InkWell(
         onTap: () =>
             context.push('/photographer_home/booking/${booking.id}/gallery'),
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        child: Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-            border: Border.all(color: AppColors.fog),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x06000000),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(
             children: [
               Container(

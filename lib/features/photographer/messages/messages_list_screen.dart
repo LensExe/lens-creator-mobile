@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_page_header.dart';
 import 'conversation_provider.dart';
 import 'widgets/conversation_preview_tile.dart';
 import 'widgets/messages_empty_state.dart';
@@ -47,56 +48,23 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
         : 'Chuyển sang “Tất cả” để xem lại các cuộc trò chuyện.';
 
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        title: const Text('Tin nhắn'),
-        backgroundColor: AppColors.mist,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.snow,
+      appBar: AppBar(title: const Text('Tin nhắn')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
+          ),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 5, 16, 26),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Các cuộc trò chuyện',
-                      style: TextStyle(
-                        color: AppColors.obsidian,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                  if (unread > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE9DC),
-                        borderRadius: BorderRadius.circular(
-                          AppTokens.radiusPill,
-                        ),
-                      ),
-                      child: Text(
-                        '$unread hội thoại chưa đọc',
-                        style: const TextStyle(
-                          color: AppColors.ember,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
+              CreatorPageHeader(
+                title: 'Trò chuyện',
+                subtitle: unread > 0
+                    ? '$unread cuộc trò chuyện chưa đọc'
+                    : 'Trao đổi với khách hàng và cộng tác viên',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               TextField(
                 onChanged: (value) => setState(() => search = value),
                 textInputAction: TextInputAction.search,
@@ -108,20 +76,8 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                   ),
                   hintText: 'Tìm theo tên hoặc nội dung',
                   filled: true,
-                  fillColor: AppColors.snow,
+                  fillColor: AppColors.mist,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                    borderSide: const BorderSide(color: AppColors.fog),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                    borderSide: const BorderSide(color: AppColors.ember),
-                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -130,7 +86,7 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                 unreadCount: unread,
                 onChanged: (value) => setState(() => unreadOnly = value),
               ),
-              const SizedBox(height: 13),
+              const SizedBox(height: 18),
               if (filtered.isEmpty)
                 MessagesEmptyState(
                   title: emptyTitle,
@@ -144,7 +100,7 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                       '/photographer_home/messages/${conversation.id}',
                     ),
                   ),
-                  const SizedBox(height: 9),
+                  const Divider(height: 1),
                 ],
             ],
           ),

@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/creator_avatar.dart';
+import '../../core/widgets/creator_list_row.dart';
+import '../../core/widgets/creator_page_header.dart';
+import '../../core/widgets/creator_section_header.dart';
 import '../../providers/data_providers.dart';
+import '../photographer/widgets/more_destinations.dart';
 
 class MoreTabScreen extends ConsumerWidget {
   const MoreTabScreen({super.key});
@@ -11,48 +17,79 @@ class MoreTabScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authUserProvider);
-    const destinations = [
-      ('Lịch làm việc', 'availability', Icons.calendar_month_outlined),
-      ('Hồ sơ năng lực', 'portfolio', Icons.photo_library_outlined),
-      ('Gói dịch vụ', 'packages', Icons.inventory_2_outlined),
-      ('Lưu trữ ảnh', 'storage', Icons.cloud_outlined),
-      ('Thành tựu', 'achievements', Icons.emoji_events_outlined),
-      ('Trợ lý AI', 'assistant', Icons.auto_awesome_outlined),
-      ('Ví của tôi', 'wallet', Icons.account_balance_wallet_outlined),
-      ('Cài đặt', 'settings', Icons.settings_outlined),
-    ];
     return Scaffold(
+      backgroundColor: AppColors.snow,
       appBar: AppBar(title: const Text('Studio')),
-      body: ListView(
-        padding: AppTokens.pagePadding,
-        children: [
-          if (user != null)
-            Card(
-              child: ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-                title: Text(user.name),
-                subtitle: Text(user.email),
-              ),
-            ),
-          for (final (label, route, icon) in destinations)
-            Card(
-              child: ListTile(
-                leading: Icon(icon),
-                title: Text(label),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/photographer_home/$route'),
-              ),
-            ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(authUserProvider.notifier).setUser(null);
-              context.go('/login');
-            },
-            icon: const Icon(Icons.logout),
-            label: const Text('Đăng xuất'),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
           ),
-        ],
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              const CreatorPageHeader(title: 'Studio của bạn'),
+              if (user != null) ...[
+                const SizedBox(height: 21),
+                Row(
+                  children: [
+                    CreatorAvatar(name: user.name, size: 48),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.name,
+                            style: const TextStyle(
+                              color: AppColors.obsidian,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            user.email,
+                            style: const TextStyle(
+                              color: AppColors.steel,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 27),
+              const CreatorSectionHeader(title: 'Quản lý'),
+              const SizedBox(height: 5),
+              for (final destination in [
+                const CreatorDestination(
+                  'Gói dịch vụ',
+                  '/photographer_home/packages',
+                  Icons.inventory_2_outlined,
+                ),
+                ...creatorMoreDestinations,
+              ]) ...[
+                CreatorListRow(
+                  icon: destination.icon,
+                  title: destination.label,
+                  onTap: () => context.push(destination.path),
+                ),
+                const Divider(),
+              ],
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: () {
+                  ref.read(authUserProvider.notifier).setUser(null);
+                  context.go('/login');
+                },
+                icon: const Icon(Icons.logout_rounded),
+                label: const Text('Đăng xuất'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

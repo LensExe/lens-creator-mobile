@@ -62,71 +62,52 @@ class PortfolioProfileView extends StatelessWidget {
         ),
       ],
       const SizedBox(height: 18),
-      Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: AppColors.snow,
-          borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-          border: Border.all(color: AppColors.fog),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SectionHeading(
-              title: 'Giới thiệu',
-              icon: Icons.notes_rounded,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeading(title: 'Giới thiệu', icon: Icons.notes_rounded),
+          const SizedBox(height: 9),
+          Text(
+            profile.bio,
+            style: const TextStyle(
+              color: AppColors.graphite,
+              fontSize: 12,
+              height: 1.55,
             ),
-            const SizedBox(height: 9),
-            Text(
-              profile.bio,
-              style: const TextStyle(
-                color: AppColors.graphite,
-                fontSize: 12,
-                height: 1.55,
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(height: 1, color: AppColors.fog),
+          ),
+          Row(
+            children: [
+              const Icon(
+                Icons.payments_outlined,
+                color: AppColors.ember,
+                size: 18,
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(height: 1, color: AppColors.fog),
-            ),
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF0E8),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: const Icon(
-                    Icons.payments_outlined,
-                    color: AppColors.ember,
-                    size: 17,
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Giá khởi điểm',
+                  style: TextStyle(
+                    color: AppColors.steel,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 9),
-                const Expanded(
-                  child: Text(
-                    'Giá khởi điểm',
-                    style: TextStyle(
-                      color: AppColors.steel,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+              ),
+              Text(
+                formatDong(profile.pricePerSession),
+                style: const TextStyle(
+                  color: AppColors.ember,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                 ),
-                Text(
-                  formatDong(profile.pricePerSession),
-                  style: const TextStyle(
-                    color: AppColors.ember,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
       const SizedBox(height: 20),
       Row(
@@ -158,44 +139,41 @@ class PortfolioProfileView extends StatelessWidget {
       const SizedBox(height: 10),
       PortfolioPhotoGrid(photos: profile.portfolio),
       const SizedBox(height: 18),
-      Row(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onPreview,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.graphite,
-                backgroundColor: AppColors.snow,
-                side: const BorderSide(color: AppColors.fog),
-                minimumSize: const Size(0, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
-                ),
-              ),
-              icon: const Icon(Icons.visibility_outlined, size: 17),
-              label: const Text(
-                'Xem công khai',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          OutlinedButton.icon(
+            onPressed: onPreview,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.graphite,
+              backgroundColor: AppColors.snow,
+              side: const BorderSide(color: AppColors.fog),
+              minimumSize: const Size(0, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(13),
               ),
             ),
+            icon: const Icon(Icons.visibility_outlined, size: 17),
+            label: const Text(
+              'Xem hồ sơ công khai',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: onEdit,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.obsidian,
-                foregroundColor: AppColors.snow,
-                minimumSize: const Size(0, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
-                ),
+          const SizedBox(height: 9),
+          FilledButton.icon(
+            onPressed: onEdit,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.obsidian,
+              foregroundColor: AppColors.snow,
+              minimumSize: const Size(0, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(13),
               ),
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text(
-                'Chỉnh sửa',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-              ),
+            ),
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text(
+              'Chỉnh sửa',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
         ],

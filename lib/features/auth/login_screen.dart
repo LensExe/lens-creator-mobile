@@ -83,124 +83,115 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppColors.snow,
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 450),
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
+          ),
           child: ListView(
             shrinkWrap: true,
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
             children: [
-              const Icon(
-                Icons.camera_alt_outlined,
-                size: 52,
-                color: AppColors.ember,
-              ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Text(
-                  'Lens Studio',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Icon(
+                  Icons.camera_alt_outlined,
+                  size: 40,
+                  color: AppColors.ember,
                 ),
               ),
               const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  signup ? 'Tạo tài khoản nhiếp ảnh gia' : 'Chào mừng trở lại',
-                  style: const TextStyle(color: AppColors.steel),
-                ),
+              Text(
+                'Lens Studio',
+                style: Theme.of(context).textTheme.headlineLarge,
               ),
-              const SizedBox(height: 24),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (signup) ...[
-                          TextFormField(
-                            controller: name,
-                            decoration: const InputDecoration(
-                              labelText: 'Họ và tên',
-                            ),
-                            validator: (value) =>
-                                (value ?? '').trim().length < 2
-                                ? 'Vui lòng nhập họ và tên'
-                                : null,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        TextFormField(
-                          controller: email,
-                          keyboardType: TextInputType.emailAddress,
-                          autofillHints: const [AutofillHints.email],
-                          decoration: const InputDecoration(labelText: 'Email'),
-                          validator: (value) =>
-                              RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                  .hasMatch((value ?? '').trim())
-                              ? null
-                              : 'Email không hợp lệ',
+              const SizedBox(height: 8),
+              Text(
+                signup ? 'Tạo tài khoản nhiếp ảnh gia' : 'Chào mừng trở lại',
+                style: const TextStyle(color: AppColors.steel, fontSize: 14),
+              ),
+              const SizedBox(height: 32),
+              Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (signup) ...[
+                      TextFormField(
+                        controller: name,
+                        decoration: const InputDecoration(
+                          labelText: 'Họ và tên',
                         ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: password,
-                          obscureText: obscure,
-                          autofillHints: [
-                            signup
-                                ? AutofillHints.newPassword
-                                : AutofillHints.password,
-                          ],
-                          decoration: InputDecoration(
-                            labelText: 'Mật khẩu',
-                            suffixIcon: IconButton(
-                              tooltip: obscure
-                                  ? 'Hiện mật khẩu'
-                                  : 'Ẩn mật khẩu',
-                              onPressed: () =>
-                                  setState(() => obscure = !obscure),
-                              icon: Icon(
-                                obscure
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            if ((value ?? '').isEmpty) {
-                              return 'Vui lòng nhập mật khẩu';
-                            }
-                            if (signup && value!.length < 8) {
-                              return 'Mật khẩu cần ít nhất 8 ký tự';
-                            }
-                            return null;
-                          },
-                        ),
-                        if (error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Text(
-                              error!,
-                              style: const TextStyle(
-                                color: AppColors.destructive,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 20),
-                        FilledButton(
-                          onPressed: busy ? null : _submit,
-                          child: Text(
-                            busy
-                                ? 'Đang xử lý...'
-                                : signup
-                                ? 'Tạo tài khoản'
-                                : 'Đăng nhập',
-                          ),
-                        ),
-                      ],
+                        validator: (value) => (value ?? '').trim().length < 2
+                            ? 'Vui lòng nhập họ và tên'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    TextFormField(
+                      controller: email,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: const InputDecoration(labelText: 'Email'),
+                      validator: (value) =>
+                          RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch((value ?? '').trim())
+                          ? null
+                          : 'Email không hợp lệ',
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: password,
+                      obscureText: obscure,
+                      autofillHints: [
+                        signup
+                            ? AutofillHints.newPassword
+                            : AutofillHints.password,
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Mật khẩu',
+                        suffixIcon: IconButton(
+                          tooltip: obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+                          onPressed: () => setState(() => obscure = !obscure),
+                          icon: Icon(
+                            obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (value) {
+                        if ((value ?? '').isEmpty) {
+                          return 'Vui lòng nhập mật khẩu';
+                        }
+                        if (signup && value!.length < 8) {
+                          return 'Mật khẩu cần ít nhất 8 ký tự';
+                        }
+                        return null;
+                      },
+                    ),
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          error!,
+                          style: const TextStyle(color: AppColors.destructive),
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: busy ? null : _submit,
+                      child: Text(
+                        busy
+                            ? 'Đang xử lý...'
+                            : signup
+                            ? 'Tạo tài khoản'
+                            : 'Đăng nhập',
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
@@ -218,31 +209,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               if (!signup)
-                Card(
-                  child: Padding(
-                    padding: AppTokens.pagePadding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Tài khoản mẫu · Nhiếp ảnh gia',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'nhiepanhgia@lens.vn · demo1234',
-                          style: TextStyle(color: AppColors.steel),
-                        ),
-                        TextButton(
-                          onPressed: () => setState(() {
-                            email.text = 'nhiepanhgia@lens.vn';
-                            password.text = 'demo1234';
-                            error = null;
-                          }),
-                          child: const Text('Điền tài khoản mẫu'),
-                        ),
-                      ],
-                    ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tài khoản mẫu · Nhiếp ảnh gia',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'nhiepanhgia@lens.vn · demo1234',
+                        style: TextStyle(color: AppColors.steel),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() {
+                          email.text = 'nhiepanhgia@lens.vn';
+                          password.text = 'demo1234';
+                          error = null;
+                        }),
+                        child: const Text('Điền tài khoản mẫu'),
+                      ),
+                    ],
                   ),
                 ),
             ],

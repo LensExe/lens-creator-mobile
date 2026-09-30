@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/creator_section_header.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
 
@@ -144,6 +146,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       initialized = true;
     }
     return Scaffold(
+      backgroundColor: AppColors.snow,
       appBar: AppBar(
         title: Text(widget.id == 'new' ? 'Thêm gói dịch vụ' : 'Chỉnh sửa gói'),
         actions: [
@@ -157,67 +160,82 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       ),
       body: Form(
         key: formKey,
-        child: ListView(
-          padding: AppTokens.pagePadding,
-          children: [
-            const Text(
-              'Điều khoản gói sẽ được lưu vào từng lịch đặt của khách.',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppTokens.contentMaxWidth,
             ),
-            const SizedBox(height: 16),
-            _Field(
-              controller: name,
-              label: 'Tên gói',
-              maxLength: 80,
-              validator: (value) =>
-                  (value ?? '').trim().length < 2 ? 'Nhập tên gói' : null,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+              children: [
+                const Text(
+                  'Điều khoản gói được lưu vào từng lịch đặt của khách.',
+                  style: TextStyle(color: AppColors.steel, fontSize: 13),
+                ),
+                const SizedBox(height: 24),
+                const CreatorSectionHeader(title: 'Thông tin gói'),
+                const SizedBox(height: 14),
+                _Field(
+                  controller: name,
+                  label: 'Tên gói',
+                  maxLength: 80,
+                  validator: (value) =>
+                      (value ?? '').trim().length < 2 ? 'Nhập tên gói' : null,
+                ),
+                _Field(
+                  controller: description,
+                  label: 'Mô tả',
+                  maxLength: 160,
+                  maxLines: 3,
+                  validator: (value) => (value ?? '').length > 160
+                      ? 'Mô tả tối đa 160 ký tự'
+                      : null,
+                ),
+                _Field(
+                  controller: price,
+                  label: 'Giá (VNĐ)',
+                  keyboardType: TextInputType.number,
+                  validator: (value) =>
+                      _integer(value, 10000, 1000000000, 'Giá'),
+                ),
+                const SizedBox(height: 12),
+                const CreatorSectionHeader(title: 'Cam kết buổi chụp'),
+                const SizedBox(height: 14),
+                _Field(
+                  controller: photoCount,
+                  label: 'Số ảnh bàn giao',
+                  keyboardType: TextInputType.number,
+                  validator: (value) => _integer(value, 1, 500, 'Số ảnh'),
+                ),
+                _Field(
+                  controller: duration,
+                  label: 'Thời lượng (giờ)',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (value) {
+                    final parsed = double.tryParse(
+                      (value ?? '').replaceAll(',', '.'),
+                    );
+                    return parsed == null || parsed < 0.5 || parsed > 12
+                        ? 'Thời lượng từ 0,5 đến 12 giờ'
+                        : null;
+                  },
+                ),
+                _Field(
+                  controller: deliveryDays,
+                  label: 'Giao trong (ngày)',
+                  keyboardType: TextInputType.number,
+                  validator: (value) => _integer(value, 1, 60, 'Số ngày'),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => _save(profile),
+                  child: const Text('Lưu gói dịch vụ'),
+                ),
+              ],
             ),
-            _Field(
-              controller: description,
-              label: 'Mô tả',
-              maxLength: 160,
-              maxLines: 3,
-              validator: (value) =>
-                  (value ?? '').length > 160 ? 'Mô tả tối đa 160 ký tự' : null,
-            ),
-            _Field(
-              controller: price,
-              label: 'Giá (VNĐ)',
-              keyboardType: TextInputType.number,
-              validator: (value) => _integer(value, 10000, 1000000000, 'Giá'),
-            ),
-            _Field(
-              controller: photoCount,
-              label: 'Số ảnh bàn giao',
-              keyboardType: TextInputType.number,
-              validator: (value) => _integer(value, 1, 500, 'Số ảnh'),
-            ),
-            _Field(
-              controller: duration,
-              label: 'Thời lượng (giờ)',
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              validator: (value) {
-                final parsed = double.tryParse(
-                  (value ?? '').replaceAll(',', '.'),
-                );
-                return parsed == null || parsed < 0.5 || parsed > 12
-                    ? 'Thời lượng từ 0,5 đến 12 giờ'
-                    : null;
-              },
-            ),
-            _Field(
-              controller: deliveryDays,
-              label: 'Giao trong (ngày)',
-              keyboardType: TextInputType.number,
-              validator: (value) => _integer(value, 1, 60, 'Số ngày'),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => _save(profile),
-              child: const Text('Lưu gói dịch vụ'),
-            ),
-          ],
+          ),
         ),
       ),
     );

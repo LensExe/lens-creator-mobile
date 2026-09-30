@@ -13,31 +13,49 @@ class PhotographerShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _calculateSelectedIndex(context),
-        onTap: (int index) => _onItemTapped(index, context),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.obsidian,
-        unselectedItemColor: AppColors.steel,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _calculateSelectedIndex(context),
+        onDestinationSelected: (index) => _onItemTapped(index, context),
+        height: 68,
+        elevation: 0,
         backgroundColor: AppColors.snow,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
+        indicatorColor: AppColors.emberSoft,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded, color: AppColors.ember),
             label: 'Trang chủ',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(
+              Icons.calendar_month_rounded,
+              color: AppColors.ember,
+            ),
             label: 'Lịch đặt',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.category_outlined),
+          NavigationDestination(
+            icon: Icon(Icons.photo_camera_outlined),
+            selectedIcon: Icon(
+              Icons.photo_camera_rounded,
+              color: AppColors.ember,
+            ),
             label: 'Gói chụp',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(
+              Icons.chat_bubble_rounded,
+              color: AppColors.ember,
+            ),
             label: 'Tin nhắn',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'Khác'),
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view_rounded, color: AppColors.ember),
+            label: 'Khác',
+          ),
         ],
       ),
     );
@@ -45,10 +63,14 @@ class PhotographerShell extends StatelessWidget {
 
   static int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/photographer_home/bookings')) return 1;
+    if (location.startsWith('/photographer_home/bookings') ||
+        location.startsWith('/photographer_home/booking/')) {
+      return 1;
+    }
     if (location.startsWith('/photographer_home/packages')) return 2;
     if (location.startsWith('/photographer_home/messages')) return 3;
-    return 0; // Default to Dashboard (or when opening bottom sheet)
+    if (location.startsWith('/photographer_home/more')) return 4;
+    return 0;
   }
 
   void _onItemTapped(int index, BuildContext context) {

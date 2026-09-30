@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
 import '../widgets/photographer_app_bar.dart';
@@ -142,7 +143,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   Widget build(BuildContext context) {
     final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      backgroundColor: AppColors.mist,
+      backgroundColor: AppColors.snow,
       appBar: PhotographerAppBar(
         actions: [
           if (profile != null && !editing) ...[
@@ -168,32 +169,47 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               ),
             )
           : editing
-          ? PortfolioEditorForm(
-              formKey: formKey,
-              city: city,
-              cities: _cities,
-              onCityChanged: (value) => setState(() => city = value),
-              priceController: price,
-              experienceController: experience,
-              bioController: bio,
-              availableStyles: _styles,
-              selectedStyles: styles,
-              onToggleStyle: (style) => setState(() {
-                if (styles.contains(style)) {
-                  styles.remove(style);
-                } else {
-                  styles.add(style);
-                }
-              }),
-              photos: photos,
-              onAddPhoto: _addPhoto,
-              onRemovePhoto: (index) => setState(() => photos.removeAt(index)),
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppTokens.contentMaxWidth,
+                ),
+                child: PortfolioEditorForm(
+                  formKey: formKey,
+                  city: city,
+                  cities: _cities,
+                  onCityChanged: (value) => setState(() => city = value),
+                  priceController: price,
+                  experienceController: experience,
+                  bioController: bio,
+                  availableStyles: _styles,
+                  selectedStyles: styles,
+                  onToggleStyle: (style) => setState(() {
+                    if (styles.contains(style)) {
+                      styles.remove(style);
+                    } else {
+                      styles.add(style);
+                    }
+                  }),
+                  photos: photos,
+                  onAddPhoto: _addPhoto,
+                  onRemovePhoto: (index) =>
+                      setState(() => photos.removeAt(index)),
+                ),
+              ),
             )
-          : PortfolioProfileView(
-              profile: profile,
-              onPreview: () =>
-                  context.push('/photographer_home/public_profile'),
-              onEdit: () => _start(profile),
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppTokens.contentMaxWidth,
+                ),
+                child: PortfolioProfileView(
+                  profile: profile,
+                  onPreview: () =>
+                      context.push('/photographer_home/public_profile'),
+                  onEdit: () => _start(profile),
+                ),
+              ),
             ),
       bottomNavigationBar: profile != null && editing
           ? PortfolioEditorActions(

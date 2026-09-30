@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/creator_avatar.dart';
 import '../../../providers/data_providers.dart';
 
 class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
@@ -11,7 +12,7 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final List<Widget> actions;
 
   @override
-  Size get preferredSize => const Size.fromHeight(68);
+  Size get preferredSize => const Size.fromHeight(60);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,18 +21,14 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
       toolbarHeight: preferredSize.height,
       titleSpacing: 16,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 4,
+            height: 27,
             decoration: BoxDecoration(
-              color: AppColors.ember.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.camera_alt_outlined,
               color: AppColors.ember,
-              size: 19,
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
           const SizedBox(width: 10),
@@ -50,7 +47,7 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
               SizedBox(height: 3),
               Text(
-                'CREATOR STUDIO',
+                'CREATOR',
                 style: TextStyle(
                   fontSize: 9,
                   letterSpacing: 1,
@@ -70,22 +67,10 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
             child: IconButton(
               tooltip: 'Cài đặt hồ sơ',
               onPressed: () => context.push('/photographer_home/settings'),
-              icon: CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.fog,
-                foregroundImage: profile.avatar.isEmpty
-                    ? null
-                    : NetworkImage(profile.avatar),
-                onForegroundImageError: profile.avatar.isEmpty
-                    ? null
-                    : (_, _) {},
-                child: Text(
-                  profile.name.characters.first.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              icon: CreatorAvatar(
+                name: profile.name,
+                imageUrl: profile.avatar,
+                size: 36,
               ),
             ),
           ),

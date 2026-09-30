@@ -32,13 +32,6 @@ class StoragePlanCard extends StatelessWidget {
           color: selected ? AppColors.ember : AppColors.fog,
           width: selected ? 1.5 : 1,
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x07000000),
-            blurRadius: 11,
-            offset: Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

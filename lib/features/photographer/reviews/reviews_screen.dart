@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_empty_state.dart';
+import '../../../core/widgets/creator_page_header.dart';
 import '../../../core/widgets/review_item.dart';
 import '../../../providers/data_providers.dart';
 
@@ -46,41 +48,39 @@ class ReviewsScreen extends ConsumerWidget {
         .where((review) => review.photographerId == profile?.id)
         .toList();
     return Scaffold(
+      backgroundColor: AppColors.snow,
       appBar: AppBar(title: const Text('Đánh giá')),
-      body: ListView(
-        padding: AppTokens.pagePadding,
-        children: [
-          Text(
-            profile == null
-                ? 'Đánh giá của bạn'
-                : '${profile.rating.toStringAsFixed(1)} ★ · ${profile.reviewCount} đánh giá',
-            style: Theme.of(context).textTheme.titleLarge,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Nhận xét từ khách hàng sau buổi chụp.',
-            style: TextStyle(color: AppColors.steel),
-          ),
-          const SizedBox(height: 20),
-          if (reviews.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Chưa có đánh giá nào.'),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 30),
+            children: [
+              CreatorPageHeader(
+                title: profile == null
+                    ? 'Đánh giá của bạn'
+                    : '${profile.rating.toStringAsFixed(1)} ★',
+                subtitle: profile == null
+                    ? 'Nhận xét từ khách hàng sau buổi chụp.'
+                    : '${profile.reviewCount} đánh giá · Nhận xét từ khách hàng sau buổi chụp.',
               ),
-            )
-          else
-            for (final (index, review) in reviews.indexed)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ReviewItemWidget(
+              const SizedBox(height: 25),
+              if (reviews.isEmpty)
+                const CreatorEmptyState(
+                  icon: Icons.rate_review_outlined,
+                  title: 'Chưa có đánh giá nào',
+                )
+              else
+                for (final (index, review) in reviews.indexed)
+                  ReviewItemWidget(
                     review: review,
                     showDivider: index < reviews.length - 1,
                   ),
-                ),
-              ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

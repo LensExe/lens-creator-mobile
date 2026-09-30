@@ -35,7 +35,6 @@ class ProfessionalBadgesSection extends StatelessWidget {
           description: badge.description,
           icon: badge.icon,
         ),
-        if (badge != badges.last) const SizedBox(height: 8),
       ],
     ],
   );

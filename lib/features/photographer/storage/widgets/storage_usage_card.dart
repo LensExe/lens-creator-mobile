@@ -44,13 +44,6 @@ class StorageUsageCard extends StatelessWidget {
         color: AppColors.snow,
         borderRadius: BorderRadius.circular(AppTokens.radiusCard),
         border: Border.all(color: AppColors.fog),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
