@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'storage_provider.dart';
+import 'widgets/storage_empty_state.dart';
+import 'widgets/storage_filter_tabs.dart';
+import 'widgets/storage_gallery_card.dart';
+import 'widgets/storage_plan_card.dart';
+import 'widgets/storage_usage_card.dart';
 
 enum _GalleryFilter { all, open, attention }
 
@@ -33,171 +36,163 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
         1024 *
         storageMb *
         (galleries.isEmpty ? 1 : galleries.length);
-    final fraction = (usedBytes / capacityBytes).clamp(0.0, 1.0);
     final visible = switch (filter) {
       _GalleryFilter.all => galleries,
       _GalleryFilter.open => galleries.where((item) => !item.locked).toList(),
       _GalleryFilter.attention =>
         galleries.where((item) => item.needsAttention).toList(),
     };
+    final openCount = galleries.where((item) => !item.locked).length;
+    final attentionCount = galleries
+        .where((item) => item.needsAttention)
+        .length;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Lưu trữ ảnh')),
-      body: ListView(
-        padding: AppTokens.pagePadding,
-        children: [
-          Text(
-            'Quản lý dung lượng, bộ sưu tập đã giao và thời hạn lưu ảnh.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: AppColors.mist,
+      appBar: AppBar(
+        title: const Text('Lưu trữ ảnh'),
+        backgroundColor: AppColors.mist,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+            children: [
+              const Text(
+                'Quản lý dung lượng, bộ sưu tập đã giao và thời hạn lưu ảnh.',
+                style: TextStyle(
+                  color: AppColors.steel,
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 15),
+              StorageUsageCard(
+                plan: plan,
+                usedBytes: usedBytes,
+                capacityBytes: capacityBytes,
+                galleryCount: galleries.length,
+              ),
+              const SizedBox(height: 22),
+              const _StorageSectionHeading(
+                title: 'Gói lưu trữ',
+                subtitle: 'Dung lượng và thời hạn theo từng gói.',
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 220,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: storagePlans.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final candidate = storagePlans[index];
+                    return StoragePlanCard(
+                      plan: candidate,
+                      selected: candidate.tier == tier,
+                      onChoose: () {
+                        ref
+                            .read(storageTierProvider.notifier)
+                            .choose(candidate.tier);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Đã chuyển sang gói ${candidate.name}',
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 23),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'Gói hiện tại · ${plan.name}',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  const Expanded(
+                    child: _StorageSectionHeading(
+                      title: 'Bộ sưu tập đã giao',
+                      subtitle: 'Ảnh đã bàn giao cho khách hàng.',
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${formatStorageBytes(usedBytes)} / ${formatStorageBytes(capacityBytes)}',
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: fraction,
-                    color: AppColors.ember,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${galleries.length} buổi đã giao ảnh · ${plan.quotaGb}GB mỗi buổi',
-                    style: const TextStyle(color: AppColors.steel),
-                  ),
-                  Text(
-                    plan.retentionDays == null
-                        ? 'Lưu dài hạn khi còn duy trì gói'
-                        : 'Lưu ${plan.retentionDays} ngày',
-                    style: const TextStyle(color: AppColors.steel),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.snow,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      border: Border.all(color: AppColors.fog),
+                    ),
+                    child: Text(
+                      '${visible.length}/${galleries.length}',
+                      style: const TextStyle(
+                        color: AppColors.graphite,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Gói lưu trữ', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          for (final candidate in storagePlans)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            candidate.name,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        if (candidate.tier == tier)
-                          const Icon(
-                            Icons.check_circle,
-                            color: AppColors.ember,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(candidate.price),
-                    Text(
-                      '${candidate.quotaGb}GB mỗi buổi · ${candidate.retentionDays == null ? 'Lưu dài hạn khi duy trì gói' : 'Lưu ${candidate.retentionDays} ngày'}',
-                      style: const TextStyle(color: AppColors.steel),
-                    ),
-                    const SizedBox(height: 10),
-                    OutlinedButton(
-                      onPressed: candidate.tier == tier
-                          ? null
-                          : () {
-                              ref
-                                  .read(storageTierProvider.notifier)
-                                  .choose(candidate.tier);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Đã chuyển sang gói ${candidate.name}',
-                                  ),
-                                ),
-                              );
-                            },
-                      child: Text(
-                        candidate.tier == tier
-                            ? 'Gói đang sử dụng'
-                            : 'Chọn gói này',
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 11),
+              StorageFilterTabs(
+                selectedIndex: _GalleryFilter.values.indexOf(filter),
+                onSelected: (index) =>
+                    setState(() => filter = _GalleryFilter.values[index]),
+                options: [
+                  StorageFilterOption(label: 'Tất cả', count: galleries.length),
+                  StorageFilterOption(label: 'Đang mở', count: openCount),
+                  StorageFilterOption(
+                    label: 'Cần chú ý',
+                    count: attentionCount,
+                  ),
+                ],
               ),
-            ),
-          const SizedBox(height: 20),
-          Text(
-            'Bộ sưu tập đã giao',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final item in _GalleryFilter.values)
-                ChoiceChip(
-                  label: Text(switch (item) {
-                    _GalleryFilter.all => 'Tất cả',
-                    _GalleryFilter.open => 'Đang mở',
-                    _GalleryFilter.attention => 'Cần chú ý',
-                  }),
-                  selected: filter == item,
-                  onSelected: (_) => setState(() => filter = item),
-                ),
+              const SizedBox(height: 11),
+              if (visible.isEmpty)
+                const StorageEmptyState()
+              else
+                for (final gallery in visible) ...[
+                  StorageGalleryCard(gallery: gallery),
+                  const SizedBox(height: 9),
+                ],
             ],
           ),
-          if (visible.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(28),
-                child: Center(child: Text('Chưa có bộ sưu tập trong mục này')),
-              ),
-            ),
-          for (final gallery in visible)
-            Card(
-              child: ListTile(
-                isThreeLine: true,
-                leading: Icon(
-                  gallery.locked
-                      ? Icons.lock_outline
-                      : Icons.photo_library_outlined,
-                ),
-                title: Text(
-                  '${gallery.booking.style} · ${gallery.booking.clientName}',
-                ),
-                subtitle: Text(
-                  '${gallery.locked ? 'Đã khóa · ' : ''}${gallery.booking.deliveredPhotos} ảnh · ${formatStorageBytes(gallery.sizeBytes)}\n'
-                  'Giao ${DateFormat('dd/MM/yyyy').format(gallery.deliveredAt)} · '
-                  '${gallery.daysLeft == null
-                      ? 'Dài hạn theo gói'
-                      : gallery.daysLeft! <= 0
-                      ? 'Đã hết hạn'
-                      : 'Còn ${gallery.daysLeft} ngày'}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push(
-                  '/photographer_home/booking/${gallery.booking.id}/gallery',
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _StorageSectionHeading extends StatelessWidget {
+  const _StorageSectionHeading({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: const TextStyle(
+          color: AppColors.obsidian,
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        subtitle,
+        style: const TextStyle(color: AppColors.steel, fontSize: 10),
+      ),
+    ],
+  );
 }

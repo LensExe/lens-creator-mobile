@@ -2,16 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_tokens.dart';
-import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
+import '../../../domain/models/models.dart';
+import 'models/photographer_rank.dart';
+import 'widgets/achievement_rank_section.dart';
+import 'widgets/current_rank_card.dart';
+import 'widgets/professional_badges_section.dart';
 
-const _ranks = [
-  ('Tân binh', 0, 10),
-  ('Thợ Đồng', 10, 9),
-  ('Thợ Bạc', 30, 8),
-  ('Thợ Vàng', 60, 7),
-  ('Thợ Kim Cương', 120, 5),
+const _professionalBadges = [
+  ProfessionalBadge(
+    title: 'Phản hồi nhanh',
+    description: 'Trả lời khách dưới 5 phút',
+    icon: Icons.bolt_rounded,
+  ),
+  ProfessionalBadge(
+    title: 'Đúng giờ tuyệt đối',
+    description: 'Luôn có mặt đúng giờ hẹn',
+    icon: Icons.schedule_rounded,
+  ),
+  ProfessionalBadge(
+    title: 'Khách quay lại',
+    description: 'Nhiều khách hàng đặt lại lần nữa',
+    icon: Icons.repeat_rounded,
+  ),
 ];
 
 class AchievementsScreen extends ConsumerWidget {
@@ -26,97 +39,57 @@ class AchievementsScreen extends ConsumerWidget {
     final sessions =
         historical +
         bookings.where((b) => b.status == BookingStatus.released).length;
-    var rankIndex = 0;
-    for (var i = 0; i < _ranks.length; i++) {
-      if (sessions >= _ranks[i].$2) rankIndex = i;
+
+    var currentRankIndex = 0;
+    for (var index = 0; index < photographerRanks.length; index++) {
+      if (sessions >= photographerRanks[index].minimumSessions) {
+        currentRankIndex = index;
+      }
     }
-    final current = _ranks[rankIndex];
-    final next = rankIndex + 1 < _ranks.length ? _ranks[rankIndex + 1] : null;
-    final progress = next == null
+
+    final currentRank = photographerRanks[currentRankIndex];
+    final nextRank = currentRankIndex + 1 < photographerRanks.length
+        ? photographerRanks[currentRankIndex + 1]
+        : null;
+    final progress = nextRank == null
         ? 1.0
-        : (sessions - current.$2) / (next.$2 - current.$2);
+        : (sessions - currentRank.minimumSessions) /
+              (nextRank.minimumSessions - currentRank.minimumSessions);
+    final sessionsToNextRank = nextRank == null
+        ? 0
+        : nextRank.minimumSessions - sessions;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Thành tựu')),
-      body: ListView(
-        padding: AppTokens.pagePadding,
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.emoji_events_outlined,
-                    color: AppColors.ember,
-                    size: 36,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    current.$1,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$sessions buổi chụp hoàn thành · Hoa hồng cấp bậc ${current.$3}%',
-                  ),
-                  if (next != null) ...[
-                    const SizedBox(height: 12),
-                    LinearProgressIndicator(
-                      value: progress,
-                      color: AppColors.ember,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Còn ${next.$2 - sessions} buổi để lên ${next.$1}',
-                      style: const TextStyle(color: AppColors.steel),
-                    ),
-                  ],
-                ],
+      backgroundColor: AppColors.mist,
+      appBar: AppBar(
+        title: const Text('Thành tựu'),
+        backgroundColor: AppColors.mist,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 5, 16, 28),
+            children: [
+              CurrentRankCard(
+                rank: currentRank,
+                sessionsCompleted: sessions,
+                progress: progress,
+                nextRank: nextRank,
+                sessionsToNextRank: sessionsToNextRank,
               ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Hành trình cấp bậc',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          for (final rank in _ranks)
-            Card(
-              child: ListTile(
-                leading: Icon(
-                  sessions >= rank.$2 ? Icons.check_circle : Icons.lock_outline,
-                  color: sessions >= rank.$2
-                      ? AppColors.ember
-                      : AppColors.steel,
-                ),
-                title: Text(rank.$1),
-                subtitle: Text('${rank.$2} buổi chụp · Phí sàn ${rank.$3}%'),
+              const SizedBox(height: 25),
+              AchievementRankSection(
+                ranks: photographerRanks,
+                currentRankIndex: currentRankIndex,
               ),
-            ),
-          const SizedBox(height: 20),
-          Text(
-            'Huy hiệu chuyên môn',
-            style: Theme.of(context).textTheme.titleLarge,
+              const SizedBox(height: 25),
+              const ProfessionalBadgesSection(badges: _professionalBadges),
+            ],
           ),
-          const SizedBox(height: 8),
-          for (final badge in const [
-            ('Phản hồi nhanh', 'Trả lời khách dưới 5 phút'),
-            ('Đúng giờ tuyệt đối', 'Luôn có mặt đúng giờ hẹn'),
-            ('Khách quay lại', 'Nhiều khách hàng đặt lại lần nữa'),
-          ])
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.workspace_premium_outlined,
-                  color: AppColors.ember,
-                ),
-                title: Text(badge.$1),
-                subtitle: Text(badge.$2),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
