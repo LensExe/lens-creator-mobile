@@ -10,11 +10,13 @@ class BookingManagementCard extends StatelessWidget {
     required this.booking,
     this.busy = false,
     this.onDecide,
+    this.onMessage,
   });
 
   final Booking booking;
   final bool busy;
   final Future<void> Function(BookingStatus)? onDecide;
+  final VoidCallback? onMessage;
 
   @override
   Widget build(BuildContext context) => CreatorBookingTile(
@@ -22,5 +24,11 @@ class BookingManagementCard extends StatelessWidget {
     busy: busy,
     onTap: () => context.push('/photographer_home/booking/${booking.id}'),
     onDecide: onDecide,
+    onMessage: onMessage,
+    onGallery:
+        booking.status == BookingStatus.held ||
+            booking.status == BookingStatus.released
+        ? () => context.push('/photographer_home/booking/${booking.id}/gallery')
+        : null,
   );
 }

@@ -2,8 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
+import 'mock_storage_repository.dart';
+import 'storage_repository.dart';
+import 'storage_tier.dart';
 
-enum StorageTier { free, pro, studio }
+export 'storage_tier.dart';
+
+final storageRepositoryProvider = Provider<StorageRepository>(
+  (ref) => MockStorageRepository(),
+);
 
 class StoragePlan {
   const StoragePlan(
@@ -29,11 +36,23 @@ const storagePlans = [
 class StorageTierNotifier extends Notifier<StorageTier> {
   @override
   StorageTier build() {
-    ref.watch(authUserProvider.select((user) => user?.id));
-    return StorageTier.free;
+    final photographerId = ref.watch(
+      authUserProvider.select((user) => user?.id),
+    );
+    if (photographerId == null) return StorageTier.free;
+    return ref.read(storageRepositoryProvider).cachedPlan(photographerId) ??
+        StorageTier.free;
   }
 
-  void choose(StorageTier tier) => state = tier;
+  Future<void> choose(StorageTier tier) async {
+    final photographerId = ref.read(authUserProvider)?.id;
+    if (photographerId == null) {
+      throw StateError('Vui lòng đăng nhập lại để đổi gói lưu trữ');
+    }
+    state = await ref
+        .read(storageRepositoryProvider)
+        .setPlan(photographerId, tier);
+  }
 }
 
 final storageTierProvider = NotifierProvider<StorageTierNotifier, StorageTier>(

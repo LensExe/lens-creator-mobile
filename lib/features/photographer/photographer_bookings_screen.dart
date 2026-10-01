@@ -13,6 +13,7 @@ import '../../providers/data_providers.dart';
 import 'bookings/widgets/booking_group_tabs.dart';
 import 'bookings/widgets/booking_management_card.dart';
 import 'bookings/widgets/collaboration_invites.dart';
+import 'messages/conversation_navigation.dart';
 import 'widgets/photographer_app_bar.dart';
 
 enum _BookingGroup { pending, active, done, cancelled }
@@ -237,6 +238,8 @@ class _PhotographerBookingsScreenState
                         booking: booking,
                         busy: decidingId == booking.id,
                         onDecide: (status) => _decide(booking, status),
+                        onMessage: () =>
+                            openClientConversation(context, ref, booking),
                       ),
                   const SizedBox(height: 26),
                   const CreatorSectionHeader(title: 'Tổng quan'),

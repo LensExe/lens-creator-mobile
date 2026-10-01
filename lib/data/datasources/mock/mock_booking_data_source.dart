@@ -12,8 +12,13 @@ class MockBookingDataSource {
       api.updateBookingStatus(id, status);
   Future<Booking> addDeliveryPhotos(String id, List<String> urls) =>
       api.addDeliveryPhotos(id, urls);
-  Future<Booking> inviteCollaborator(String id, Photographer photographer, int sharePct) =>
-      api.inviteCollaborator(id, photographer, sharePct);
-  Future<Booking> respondToCollaboration(String id, CollaborationStatus status) =>
-      api.respondToCollaboration(id, status);
+  Future<Booking> inviteCollaborator(
+    String id,
+    Photographer photographer,
+    int sharePct,
+  ) => api.inviteCollaborator(id, photographer, sharePct);
+  Future<Booking> respondToCollaboration(
+    String id,
+    CollaborationStatus status,
+  ) => api.respondToCollaboration(id, status);
 }

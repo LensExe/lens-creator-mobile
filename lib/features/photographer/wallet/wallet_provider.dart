@@ -1,58 +1,41 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../providers/data_providers.dart';
+import 'mock_wallet_repository.dart';
+import 'wallet_entry.dart';
+import 'wallet_repository.dart';
 
-class WalletEntry {
-  const WalletEntry({
-    required this.amount,
-    required this.note,
-    required this.date,
-  });
-  final int amount;
-  final String note;
-  final DateTime date;
-}
+final walletRepositoryProvider = Provider<WalletRepository>(
+  (ref) => MockWalletRepository(),
+);
 
-class WalletNotifier extends Notifier<List<WalletEntry>> {
+class WalletNotifier extends AsyncNotifier<List<WalletEntry>> {
   @override
-  List<WalletEntry> build() {
-    if (ref.watch(authUserProvider)?.id != 'me') return [];
-    final now = DateTime.now();
-    return [
-      WalletEntry(
-        amount: 405000,
-        note: 'Giải ngân buổi chụp Chân dung',
-        date: now.subtract(const Duration(days: 9)),
-      ),
-      WalletEntry(
-        amount: -500000,
-        note: 'Rút tiền về ngân hàng',
-        date: now.subtract(const Duration(days: 20)),
-      ),
-      WalletEntry(
-        amount: 495000,
-        note: 'Giải ngân buổi chụp Gia đình',
-        date: now.subtract(const Duration(days: 30)),
-      ),
-    ];
+  Future<List<WalletEntry>> build() async {
+    final user = ref.watch(authUserProvider);
+    if (user == null || user.role != 'photographer') return [];
+    return ref.read(walletRepositoryProvider).getTransactions(user.id);
   }
 
-  int get balance => state.fold(0, (sum, entry) => sum + entry.amount);
-
-  void withdraw(int amount) {
-    if (amount <= 0 || amount > balance) {
-      throw StateError('Số tiền rút vượt số dư');
+  Future<void> withdraw(int amount) async {
+    final user = ref.read(authUserProvider);
+    final previous = state.value ?? const <WalletEntry>[];
+    if (user == null || user.role != 'photographer') {
+      throw StateError('Chỉ nhiếp ảnh gia mới có thể rút tiền');
     }
-    state = [
-      WalletEntry(
-        amount: -amount,
-        note: 'Rút tiền về ngân hàng',
-        date: DateTime.now(),
-      ),
-      ...state,
-    ];
+    state = const AsyncLoading();
+    try {
+      final updated = await ref
+          .read(walletRepositoryProvider)
+          .requestWithdraw(user.id, amount);
+      state = AsyncData(updated);
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }
 
-final walletProvider = NotifierProvider<WalletNotifier, List<WalletEntry>>(
+final walletProvider = AsyncNotifierProvider<WalletNotifier, List<WalletEntry>>(
   WalletNotifier.new,
 );

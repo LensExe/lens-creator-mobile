@@ -7,10 +7,12 @@ class AvailabilitySaveBar extends StatelessWidget {
     super.key,
     required this.onDiscard,
     required this.onSave,
+    this.saving = false,
   });
 
-  final VoidCallback onDiscard;
-  final VoidCallback onSave;
+  final VoidCallback? onDiscard;
+  final VoidCallback? onSave;
+  final bool saving;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -58,8 +60,8 @@ class AvailabilitySaveBar extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.save_outlined, size: 17),
-                label: const Text(
-                  'Lưu lịch',
+                label: Text(
+                  saving ? 'Đang lưu...' : 'Lưu lịch',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

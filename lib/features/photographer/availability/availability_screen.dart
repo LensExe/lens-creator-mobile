@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -26,6 +25,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
     DateTime.now().add(const Duration(days: 1)),
   );
   bool dirty = false;
+  bool saving = false;
   int selectedWeekday = 1;
 
   void _edit(void Function(WorkSchedule) change) {
@@ -38,28 +38,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       draft = next;
       dirty = true;
     });
-  }
-
-  Future<bool> _confirmDiscard() async {
-    if (!dirty) return true;
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Bỏ thay đổi lịch?'),
-            content: const Text('Các khung giờ chưa lưu sẽ bị huỷ.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Tiếp tục sửa'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Bỏ thay đổi'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    ref.read(availabilityDirtyProvider.notifier).setDirty(true);
   }
 
   Future<void> _pickDate() async {
@@ -79,18 +58,32 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       draft = null;
       dirty = false;
     });
+    ref.read(availabilityDirtyProvider.notifier).setDirty(false);
   }
 
-  void _saveDraft() {
+  Future<void> _saveDraft() async {
     final current = draft;
-    if (current == null) return;
-    ref.read(scheduleProvider.notifier).save(current);
-    setState(() {
-      draft = null;
-      dirty = false;
-    });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Đã lưu lịch làm việc')));
+    if (current == null || saving) return;
+    setState(() => saving = true);
+    try {
+      await ref.read(scheduleProvider.notifier).save(current);
+      if (!mounted) return;
+      setState(() {
+        draft = null;
+        dirty = false;
+      });
+      ref.read(availabilityDirtyProvider.notifier).setDirty(false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã lưu lịch làm việc')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể lưu lịch làm việc: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   String _hoursLabel(int halfHourSlots) {
@@ -148,119 +141,114 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       );
     }).length;
 
-    return PopScope(
-      canPop: !dirty,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop && await _confirmDiscard() && context.mounted) {
-          _discardDraft();
-          context.pop();
-        }
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.snow,
-        appBar: PhotographerAppBar(
-          actions: [
-            IconButton(
-              tooltip: 'Chọn ngày',
-              onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_month_outlined),
-            ),
-          ],
-        ),
-        bottomNavigationBar: dirty
-            ? AvailabilitySaveBar(onDiscard: _discardDraft, onSave: _saveDraft)
-            : null,
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: AppTokens.contentMaxWidth,
-            ),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 17, 16, 26),
-              children: [
-                const Text(
-                  'Lịch làm việc',
-                  style: TextStyle(
-                    color: AppColors.obsidian,
-                    fontSize: 25,
-                    height: 1.15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
-                  ),
+    return Scaffold(
+      backgroundColor: AppColors.snow,
+      appBar: PhotographerAppBar(
+        actions: [
+          IconButton(
+            tooltip: 'Chọn ngày',
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_month_outlined),
+          ),
+        ],
+      ),
+      bottomNavigationBar: dirty
+          ? AvailabilitySaveBar(
+              onDiscard: saving ? null : _discardDraft,
+              onSave: saving ? null : _saveDraft,
+              saving: saving,
+            )
+          : null,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
+          ),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 17, 16, 26),
+            children: [
+              const Text(
+                'Lịch làm việc',
+                style: TextStyle(
+                  color: AppColors.obsidian,
+                  fontSize: 25,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
                 ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Sắp xếp thời gian nhận lịch và những lúc bạn bận.',
-                  style: TextStyle(
-                    color: AppColors.steel,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                'Sắp xếp thời gian nhận lịch và những lúc bạn bận.',
+                style: TextStyle(
+                  color: AppColors.steel,
+                  fontSize: 12,
+                  height: 1.4,
                 ),
-                const SizedBox(height: 17),
-                WeeklyScheduleCard(
-                  schedule: schedule,
-                  selectedWeekday: selectedWeekday,
-                  onWeekdaySelected: (weekday) =>
-                      setState(() => selectedWeekday = weekday),
-                  onPresetSelected: (days) => _edit((next) {
-                    for (var day = 0; day < 7; day++) {
-                      next.weekly[day] = days.contains(day)
-                          ? {...WorkSchedule.slots}
-                          : <String>{};
-                    }
-                  }),
-                  onDayAvailabilityChanged: (weekday, enabled) => _edit(
-                    (next) => next.weekly[weekday] = enabled
+              ),
+              const SizedBox(height: 17),
+              WeeklyScheduleCard(
+                schedule: schedule,
+                selectedWeekday: selectedWeekday,
+                onWeekdaySelected: (weekday) =>
+                    setState(() => selectedWeekday = weekday),
+                onPresetSelected: (days) => _edit((next) {
+                  for (var day = 0; day < 7; day++) {
+                    next.weekly[day] = days.contains(day)
                         ? {...WorkSchedule.slots}
-                        : <String>{},
-                  ),
-                  onSlotToggle: (weekday, slot) => _edit((next) {
-                    final cells = next.weekly[weekday];
-                    if (!cells.add(slot)) cells.remove(slot);
-                  }),
+                        : <String>{};
+                  }
+                }),
+                onDayAvailabilityChanged: (weekday, enabled) => _edit(
+                  (next) => next.weekly[weekday] = enabled
+                      ? {...WorkSchedule.slots}
+                      : <String>{},
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 22),
-                  child: Divider(height: 1),
-                ),
-                DayScheduleCard(
-                  date: selected,
-                  bookings: bookingsOnDay,
-                  workingSlots: workingSlots,
-                  busySlots: busySlots,
-                  bookedSlots: bookedSlots,
-                  availableCount: availableCount,
-                  busyAllDay:
-                      workingSlots.isNotEmpty &&
-                      busySlots.containsAll(workingSlots),
-                  onPickDate: _pickDate,
-                  onBusyAllDayChanged: (value) => _edit((next) {
-                    if (value) {
-                      next.busy[key] = {...workingSlots};
-                    } else {
-                      next.busy.remove(key);
-                    }
-                  }),
-                  onBusySlotTap: (slot) => _edit((next) {
-                    final cells = next.busy.putIfAbsent(key, () => <String>{});
-                    if (!cells.add(slot)) cells.remove(slot);
-                    if (cells.isEmpty) next.busy.remove(key);
-                  }),
-                ),
-                const SizedBox(height: 27),
-                AvailabilityOverview(
-                  weeklyHours: _hoursLabel(weeklySlots),
-                  upcomingBookings: upcomingBookings,
-                  busySlots: busySlotCount,
-                  openDays: openDays,
-                ),
-                if (dirty) ...[
-                  const SizedBox(height: 12),
-                  const _UnsavedNotice(),
-                ],
+                onSlotToggle: (weekday, slot) => _edit((next) {
+                  final cells = next.weekly[weekday];
+                  if (!cells.add(slot)) cells.remove(slot);
+                }),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 22),
+                child: Divider(height: 1),
+              ),
+              DayScheduleCard(
+                date: selected,
+                bookings: bookingsOnDay,
+                workingSlots: workingSlots,
+                busySlots: busySlots,
+                bookedSlots: bookedSlots,
+                availableCount: availableCount,
+                busyAllDay:
+                    workingSlots.isNotEmpty &&
+                    busySlots.containsAll(workingSlots),
+                onPickDate: _pickDate,
+                onBusyAllDayChanged: (value) => _edit((next) {
+                  if (value) {
+                    next.busy[key] = {...workingSlots};
+                  } else {
+                    next.busy.remove(key);
+                  }
+                }),
+                onBusySlotTap: (slot) => _edit((next) {
+                  final cells = next.busy.putIfAbsent(key, () => <String>{});
+                  if (!cells.add(slot)) cells.remove(slot);
+                  if (cells.isEmpty) next.busy.remove(key);
+                }),
+              ),
+              const SizedBox(height: 27),
+              AvailabilityOverview(
+                weeklyHours: _hoursLabel(weeklySlots),
+                upcomingBookings: upcomingBookings,
+                busySlots: busySlotCount,
+                openDays: openDays,
+              ),
+              if (dirty) ...[
+                const SizedBox(height: 12),
+                const _UnsavedNotice(),
               ],
-            ),
+            ],
           ),
         ),
       ),

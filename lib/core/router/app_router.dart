@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lens_creator_mobile/features/landing/ui_gallery_screen.dart';
@@ -25,15 +26,25 @@ import 'package:lens_creator_mobile/features/photographer/bookings/delivery_gall
 import 'package:lens_creator_mobile/providers/data_providers.dart';
 import 'package:lens_creator_mobile/features/photographer/assistant/assistant_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/settings/settings_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/availability/schedule_provider.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
       final user = ref.read(authUserProvider);
-      if (state.matchedLocation.startsWith('/photographer_home') &&
-          (user == null || user.role != 'photographer')) {
-        return '/login';
+      final isPhotographerRoute = state.matchedLocation.startsWith(
+        '/photographer_home',
+      );
+      if (isPhotographerRoute && user == null) {
+        final requested = state.uri.toString();
+        return '/login?from=${Uri.encodeComponent(requested)}';
+      }
+      if (isPhotographerRoute && user?.role != 'photographer') {
+        return '/login?reason=photographer-only';
+      }
+      if (state.matchedLocation == '/login' && user?.role == 'photographer') {
+        return '/photographer_home';
       }
       return null;
     },
@@ -87,48 +98,74 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/photographer_home/more',
             builder: (context, state) => const MoreTabScreen(),
           ),
+          GoRoute(
+            path: '/photographer_home/portfolio',
+            builder: (context, state) => const PortfolioScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/public_profile',
+            builder: (context, state) => const PublicProfileScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/wallet',
+            builder: (context, state) => const WalletScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/achievements',
+            builder: (context, state) => const AchievementsScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/storage',
+            builder: (context, state) => const StorageScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/availability',
+            builder: (context, state) => const AvailabilityScreen(),
+            onExit: (context, state) async {
+              if (!ref.read(availabilityDirtyProvider)) return true;
+              final discard = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Rời trang khi chưa lưu?'),
+                  content: const Text(
+                    'Các thay đổi lịch làm việc chưa được lưu sẽ bị bỏ. Khách vẫn thấy lịch cũ.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Ở lại'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Rời trang'),
+                    ),
+                  ],
+                ),
+              );
+              if (discard == true) {
+                ref.read(availabilityDirtyProvider.notifier).setDirty(false);
+              }
+              return discard ?? false;
+            },
+          ),
+          GoRoute(
+            path: '/photographer_home/reviews',
+            builder: (context, state) => const ReviewsScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/assistant',
+            builder: (context, state) => const AssistantScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/settings',
+            builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/messages/:id',
+            builder: (context, state) =>
+                ChatDetailScreen(id: state.pathParameters['id']!),
+          ),
         ],
-      ),
-      GoRoute(
-        path: '/photographer_home/portfolio',
-        builder: (context, state) => const PortfolioScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/public_profile',
-        builder: (context, state) => const PublicProfileScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/wallet',
-        builder: (context, state) => const WalletScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/achievements',
-        builder: (context, state) => const AchievementsScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/storage',
-        builder: (context, state) => const StorageScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/availability',
-        builder: (context, state) => const AvailabilityScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/reviews',
-        builder: (context, state) => const ReviewsScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/assistant',
-        builder: (context, state) => const AssistantScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/settings',
-        builder: (context, state) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: '/photographer_home/messages/:id',
-        builder: (context, state) =>
-            ChatDetailScreen(id: state.pathParameters['id']!),
       ),
     ],
   );

@@ -15,6 +15,7 @@ import '../../providers/data_providers.dart';
 import 'bookings/widgets/collaboration_invites.dart';
 import 'bookings/widgets/studio_booking_card.dart' show formatDong;
 import 'home/widgets/home_booking_card.dart';
+import 'messages/conversation_navigation.dart';
 import 'widgets/photographer_app_bar.dart';
 
 class PhotographerHomeScreen extends ConsumerWidget {
@@ -118,6 +119,8 @@ class PhotographerHomeScreen extends ConsumerWidget {
                     for (final booking in pending.take(3))
                       HomeBookingCard(
                         booking: booking,
+                        onMessage: () =>
+                            openClientConversation(context, ref, booking),
                         onDecide: (status) => ref
                             .read(asyncBookingsProvider.notifier)
                             .updateBookingStatus(booking.id, status),
@@ -136,7 +139,11 @@ class PhotographerHomeScreen extends ConsumerWidget {
                     )
                   else
                     for (final booking in upcoming.take(3))
-                      HomeBookingCard(booking: booking),
+                      HomeBookingCard(
+                        booking: booking,
+                        onMessage: () =>
+                            openClientConversation(context, ref, booking),
+                      ),
                   const SizedBox(height: 27),
                   const CreatorSectionHeader(title: 'Quản lý Studio'),
                   const SizedBox(height: 5),

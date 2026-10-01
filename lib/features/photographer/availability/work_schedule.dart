@@ -17,13 +17,20 @@ class WorkSchedule {
   factory WorkSchedule.open({bool demoSeed = false}) {
     final today = DateTime.now();
     return WorkSchedule(
-      weekly: [for (var day = 0; day < 7; day++) {...slots}],
-      busy: demoSeed ? {
-        iso(today.add(const Duration(days: 5))): {...slots},
-        iso(today.add(const Duration(days: 9))): {
-          '14:00', '14:30', '15:00', '15:30',
-        },
-      } : {},
+      weekly: [
+        for (var day = 0; day < 7; day++) {...slots},
+      ],
+      busy: demoSeed
+          ? {
+              iso(today.add(const Duration(days: 5))): {...slots},
+              iso(today.add(const Duration(days: 9))): {
+                '14:00',
+                '14:30',
+                '15:00',
+                '15:30',
+              },
+            }
+          : {},
     );
   }
 

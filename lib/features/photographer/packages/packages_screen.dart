@@ -45,7 +45,7 @@ class PackagesScreen extends ConsumerWidget {
                           '/photographer_home/packages/edit/new',
                         ),
                         icon: const Icon(Icons.add_rounded),
-                        label: const Text('Thêm gói dịch vụ'),
+                        label: const Text('Thêm gói chụp'),
                       ),
                     ),
                     const SizedBox(height: 27),

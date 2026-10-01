@@ -6,7 +6,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
-import 'data/mock_auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -35,21 +34,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!formKey.currentState!.validate()) return;
+    final requestedLocation = GoRouterState.of(context)
+        .uri
+        .queryParameters['from'];
     setState(() {
       busy = true;
       error = null;
     });
     try {
       final user = signup
-          ? await mockAuthRepository.register(
-              name.text,
-              email.text,
-              password.text,
-            )
-          : await mockAuthRepository.login(email.text, password.text);
+          ? await ref
+                .read(authRepositoryProvider)
+                .register(name.text, email.text, password.text)
+          : await ref
+                .read(authRepositoryProvider)
+                .login(email.text, password.text);
       if (!mounted) return;
       if (signup) {
-        ref
+        await ref
             .read(photographersProvider.notifier)
             .add(
               Photographer(
@@ -67,9 +69,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 portfolio: const [],
               ),
             );
+        if (!mounted) return;
       }
       ref.read(authUserProvider.notifier).setUser(user);
-      context.go('/photographer_home');
+      final safeLocation =
+          requestedLocation != null &&
+              (requestedLocation == '/photographer_home' ||
+                  requestedLocation.startsWith('/photographer_home/'))
+          ? requestedLocation
+          : '/photographer_home';
+      context.go(safeLocation);
     } catch (exception) {
       if (mounted) {
         setState(
@@ -112,6 +121,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 signup ? 'Tạo tài khoản nhiếp ảnh gia' : 'Chào mừng trở lại',
                 style: const TextStyle(color: AppColors.steel, fontSize: 14),
               ),
+              if (GoRouterState.of(context).uri.queryParameters['reason'] ==
+                  'photographer-only') ...[
+                const SizedBox(height: 14),
+                const Text(
+                  'Ứng dụng này dành cho tài khoản nhiếp ảnh gia. Tài khoản khách hàng tiếp tục sử dụng ứng dụng LENS dành cho khách.',
+                  style: TextStyle(
+                    color: AppColors.graphite,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               Form(
                 key: formKey,

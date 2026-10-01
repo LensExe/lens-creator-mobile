@@ -10,11 +10,13 @@ class StoragePlanCard extends StatelessWidget {
     required this.plan,
     required this.selected,
     required this.onChoose,
+    this.busy = false,
   });
 
   final StoragePlan plan;
   final bool selected;
   final VoidCallback onChoose;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +90,7 @@ class StoragePlanCard extends StatelessWidget {
                     child: const Text('Gói đang sử dụng'),
                   )
                 : FilledButton(
-                    onPressed: onChoose,
+                    onPressed: busy ? null : onChoose,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.obsidian,
                       minimumSize: const Size(0, 38),
@@ -96,7 +98,7 @@ class StoragePlanCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(11),
                       ),
                     ),
-                    child: const Text('Chọn gói này'),
+                    child: Text(busy ? 'Đang cập nhật...' : 'Chọn gói này'),
                   ),
           ),
         ],

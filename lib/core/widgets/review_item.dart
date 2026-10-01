@@ -1,27 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lens_creator_mobile/domain/models/review.dart';
 import 'package:lens_creator_mobile/core/theme/app_colors.dart';
 import 'package:lens_creator_mobile/core/widgets/creator_avatar.dart';
 import 'package:intl/intl.dart';
-
-class Review {
-  final String id;
-  final String photographerId;
-  final String authorName;
-  final String authorAvatar;
-  final double rating;
-  final String comment;
-  final String date;
-
-  Review({
-    required this.id,
-    required this.photographerId,
-    required this.authorName,
-    required this.authorAvatar,
-    required this.rating,
-    required this.comment,
-    required this.date,
-  });
-}
 
 class ReviewItemWidget extends StatelessWidget {
   final Review review;

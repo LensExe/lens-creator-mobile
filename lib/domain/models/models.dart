@@ -95,18 +95,24 @@ enum BookingStatus {
 enum CollaborationStatus { invited, accepted, declined }
 
 class BookingCollaborator {
-  const BookingCollaborator({required this.photographerId,
-    required this.photographerName, required this.sharePct,
-    this.status = CollaborationStatus.invited});
+  const BookingCollaborator({
+    required this.photographerId,
+    required this.photographerName,
+    required this.sharePct,
+    this.status = CollaborationStatus.invited,
+  });
   final String photographerId;
   final String photographerName;
   final int sharePct;
   final CollaborationStatus status;
 
   BookingCollaborator copyWith({CollaborationStatus? status}) =>
-      BookingCollaborator(photographerId: photographerId,
-          photographerName: photographerName, sharePct: sharePct,
-          status: status ?? this.status);
+      BookingCollaborator(
+        photographerId: photographerId,
+        photographerName: photographerName,
+        sharePct: sharePct,
+        status: status ?? this.status,
+      );
 }
 
 class Booking {

@@ -1,4 +1,4 @@
-import 'assistant_provider.dart';
+import 'assistant_models.dart';
 
 class AssistantRules {
   static const handoffMessage =

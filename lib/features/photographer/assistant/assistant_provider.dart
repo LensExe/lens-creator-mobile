@@ -1,56 +1,41 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../data/datasources/mock/mock_assistant_data_source.dart';
+import '../../../data/repositories/assistant_repository_impl.dart';
 import '../../../providers/data_providers.dart';
+import 'assistant_models.dart';
+import 'assistant_repository.dart';
 
-class AssistantFaq {
-  const AssistantFaq(this.question, this.answer);
-  final String question;
-  final String answer;
-}
-
-class AssistantConfig {
-  const AssistantConfig({
-    required this.enabled,
-    required this.services,
-    required this.style,
-    required this.area,
-    required this.tone,
-    required this.faqs,
-  });
-  final bool enabled;
-  final String services;
-  final String style;
-  final String area;
-  final String tone;
-  final List<AssistantFaq> faqs;
-}
+final assistantRepositoryProvider = Provider<AssistantRepository>(
+  (ref) => AssistantRepositoryImpl(MockAssistantDataSource()),
+);
 
 class AssistantNotifier extends Notifier<AssistantConfig> {
   @override
   AssistantConfig build() {
-    if (ref.watch(authUserProvider)?.id != 'me') {
-      return const AssistantConfig(enabled: false, services: '', style: '',
-          area: '', tone: '', faqs: []);
+    final user = ref.watch(authUserProvider);
+    if (user == null || user.role != 'photographer') {
+      return const AssistantConfig(
+        enabled: false,
+        services: '',
+        style: '',
+        area: '',
+        tone: '',
+        faqs: [],
+      );
     }
-    return const AssistantConfig(
-    enabled: true,
-    services: 'Gói cơ bản 450k, Tiêu chuẩn 800k, Cao cấp 1.35tr.',
-    style: 'Chân dung & gia đình, ánh sáng tự nhiên.',
-    area: 'Hà Nội và khu vực lân cận',
-    tone: 'Thân thiện, ngắn gọn',
-    faqs: [
-      AssistantFaq(
-        'Bao lâu thì giao ảnh?',
-        'Mình giao ảnh trong vòng 5–7 ngày sau buổi chụp nhé.',
-      ),
-      AssistantFaq(
-        'Có hỗ trợ trang điểm không?',
-        'Mình có thể kết nối makeup artist, chi phí tính riêng.',
-      ),
-    ],
-    );
+    return ref.read(assistantRepositoryProvider).cachedConfig(user.id);
   }
 
-  void save(AssistantConfig value) => state = value;
+  Future<void> save(AssistantConfig value) async {
+    final user = ref.read(authUserProvider);
+    if (user == null || user.role != 'photographer') {
+      throw StateError('Vui lòng đăng nhập tài khoản nhiếp ảnh gia');
+    }
+    state = await ref
+        .read(assistantRepositoryProvider)
+        .saveConfig(user.id, value);
+  }
 }
 
 final assistantProvider = NotifierProvider<AssistantNotifier, AssistantConfig>(

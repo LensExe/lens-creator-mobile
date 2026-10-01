@@ -14,12 +14,16 @@ class CreatorBookingTile extends StatelessWidget {
     required this.booking,
     this.onTap,
     this.onDecide,
+    this.onMessage,
+    this.onGallery,
     this.busy = false,
   });
 
   final Booking booking;
   final VoidCallback? onTap;
   final Future<void> Function(BookingStatus)? onDecide;
+  final VoidCallback? onMessage;
+  final VoidCallback? onGallery;
   final bool busy;
 
   String _money(int value) =>
@@ -140,12 +144,32 @@ class CreatorBookingTile extends StatelessWidget {
                   onAccept: () => onDecide!(BookingStatus.confirmed),
                 ),
               ],
-              if (booking.status == BookingStatus.held && onTap != null) ...[
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: onTap,
-                  icon: const Icon(Icons.photo_library_outlined, size: 17),
-                  label: const Text('Mở chi tiết để giao ảnh'),
+              if (onMessage != null || onGallery != null) ...[
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 4,
+                  children: [
+                    if (onMessage != null &&
+                        booking.status != BookingStatus.cancelled)
+                      TextButton.icon(
+                        onPressed: onMessage,
+                        icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                        label: const Text('Nhắn tin'),
+                      ),
+                    if (onGallery != null && isDelivered)
+                      TextButton.icon(
+                        onPressed: onGallery,
+                        icon: const Icon(
+                          Icons.photo_library_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          booking.status == BookingStatus.held
+                              ? 'Giao ảnh'
+                              : 'Xem ảnh',
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ],

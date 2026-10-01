@@ -13,12 +13,14 @@ class StudioBookingCard extends StatelessWidget {
     super.key,
     required this.booking,
     this.onDecide,
+    this.onMessage,
     this.busy = false,
     this.openDetail = true,
   });
 
   final Booking booking;
   final Future<void> Function(BookingStatus)? onDecide;
+  final VoidCallback? onMessage;
   final bool busy;
   final bool openDetail;
 
@@ -30,5 +32,11 @@ class StudioBookingCard extends StatelessWidget {
         ? () => context.push('/photographer_home/booking/${booking.id}')
         : null,
     onDecide: onDecide,
+    onMessage: onMessage,
+    onGallery:
+        booking.status == BookingStatus.held ||
+            booking.status == BookingStatus.released
+        ? () => context.push('/photographer_home/booking/${booking.id}/gallery')
+        : null,
   );
 }

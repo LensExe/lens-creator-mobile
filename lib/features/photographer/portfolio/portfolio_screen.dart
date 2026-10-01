@@ -46,6 +46,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   final price = TextEditingController();
   final experience = TextEditingController();
   bool editing = false;
+  bool saving = false;
   String? city;
   List<String> styles = [];
   List<String> photos = [];
@@ -70,7 +71,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     });
   }
 
-  void _save(Photographer profile) {
+  Future<void> _save(Photographer profile) async {
     if (!formKey.currentState!.validate()) return;
     if (styles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,21 +79,33 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       );
       return;
     }
-    ref
-        .read(photographersProvider.notifier)
-        .update(
-          profile.copyWith(
-            city: city,
-            bio: bio.text.trim(),
-            pricePerSession: int.parse(price.text.trim()),
-            experienceYears: int.parse(experience.text.trim()),
-            styles: [...styles],
-            portfolio: [...photos],
-          ),
+    setState(() => saving = true);
+    try {
+      await ref
+          .read(photographersProvider.notifier)
+          .update(
+            profile.copyWith(
+              city: city,
+              bio: bio.text.trim(),
+              pricePerSession: int.parse(price.text.trim()),
+              experienceYears: int.parse(experience.text.trim()),
+              styles: [...styles],
+              portfolio: [...photos],
+            ),
+          );
+      if (!mounted) return;
+      setState(() => editing = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật hồ sơ: $error')),
         );
-    setState(() => editing = false);
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ')));
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   Future<void> _addPhoto() async {
@@ -215,6 +228,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           ? PortfolioEditorActions(
               onCancel: () => setState(() => editing = false),
               onSave: () => _save(profile),
+              busy: saving,
             )
           : null,
     );

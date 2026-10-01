@@ -24,28 +24,29 @@ class DeliveryGalleryScreen extends ConsumerStatefulWidget {
 
 class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
   bool uploading = false;
+  final Set<String> selectedUrls = {};
 
-  Future<void> _uploadMockBatch(Booking booking) async {
+  void _togglePhoto(String url, int selectionLimit) {
+    setState(() {
+      if (!selectedUrls.add(url)) {
+        selectedUrls.remove(url);
+      } else if (selectedUrls.length > selectionLimit) {
+        selectedUrls.remove(url);
+      }
+    });
+  }
+
+  Future<void> _uploadSelected(Booking booking, List<String> urls) async {
+    if (urls.isEmpty) return;
     setState(() => uploading = true);
     try {
-      // The portal mock upload also supplies stock photos. Replace this adapter
-      // with a real media upload when the mobile backend is available.
-      final remaining = (booking.promisedPhotos ?? 1) - booking.deliveredPhotos;
-      final count = remaining.clamp(1, 5);
-      final sample =
-          ref.read(myPhotographerProvider)?.portfolio ?? const <String>[];
-      final urls = List.generate(
-        count,
-        (index) => sample.isEmpty
-            ? 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=700'
-            : sample[(booking.deliveredPhotos + index) % sample.length],
-      );
       await ref
           .read(asyncBookingsProvider.notifier)
           .addDeliveryPhotos(booking.id, urls);
       if (mounted) {
+        setState(selectedUrls.clear);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã giao $count ảnh mẫu cho khách')),
+          SnackBar(content: Text('Đã giao ${urls.length} ảnh cho khách')),
         );
       }
     } catch (error) {
@@ -81,12 +82,28 @@ class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
             return const Center(child: Text('Không tìm thấy lịch chụp'));
           }
           final b = booking;
+          final portfolio =
+              ref.watch(myPhotographerProvider)?.portfolio ?? const <String>[];
+          final availablePhotos = portfolio
+              .where((url) => !b.deliveredPhotoUrls.contains(url))
+              .toList();
+          final promised = b.promisedPhotos;
+          final remaining = promised == null
+              ? 0
+              : (promised - b.deliveredPhotos).clamp(0, promised);
+          final selectionLimit = remaining.clamp(0, 5);
+          final selection = selectedUrls
+              .where(availablePhotos.contains)
+              .take(selectionLimit)
+              .toList();
           StorageGallery? gallery;
           for (final item in ref.watch(storageGalleriesProvider)) {
             if (item.booking.id == b.id) gallery = item;
           }
-          final required = b.promisedPhotos ?? 1;
-          final progress = (b.deliveredPhotos / required).clamp(0.0, 1.0);
+          final required = promised ?? 0;
+          final progress = required <= 0
+              ? 0.0
+              : (b.deliveredPhotos / required).clamp(0.0, 1.0);
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(
@@ -98,7 +115,9 @@ class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
                   CreatorPageHeader(title: b.style, subtitle: b.clientName),
                   const SizedBox(height: 23),
                   Text(
-                    'Đã giao ${b.deliveredPhotos}/$required ảnh',
+                    promised == null
+                        ? 'Chưa có số lượng ảnh cam kết cho gói này'
+                        : 'Đã giao ${b.deliveredPhotos}/$required ảnh',
                     style: const TextStyle(
                       color: AppColors.obsidian,
                       fontSize: 15,
@@ -122,15 +141,83 @@ class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
                       fontSize: 12,
                     ),
                   ),
-                  if (b.status == BookingStatus.held) ...[
+                  if (b.status == BookingStatus.held && remaining > 0) ...[
                     const SizedBox(height: 17),
+                    const Text(
+                      'Chọn ảnh từ hồ sơ năng lực để bàn giao. Tối đa 5 ảnh mỗi lần.',
+                      style: TextStyle(
+                        color: AppColors.steel,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (availablePhotos.isEmpty)
+                      const Text(
+                        'Hồ sơ năng lực chưa có ảnh mới để bàn giao.',
+                        style: TextStyle(color: AppColors.steel, fontSize: 12),
+                      )
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: availablePhotos.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                            ),
+                        itemBuilder: (context, index) {
+                          final url = availablePhotos[index];
+                          final selected = selection.contains(url);
+                          return GestureDetector(
+                            onTap: uploading
+                                ? null
+                                : () => _togglePhoto(url, selectionLimit),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    AppTokens.radiusInput,
+                                  ),
+                                  child: Image.network(
+                                    url,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => const ColoredBox(
+                                      color: AppColors.fog,
+                                      child: Icon(Icons.broken_image_outlined),
+                                    ),
+                                  ),
+                                ),
+                                if (selected)
+                                  const Align(
+                                    alignment: Alignment.topRight,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(5),
+                                      child: Icon(
+                                        Icons.check_circle,
+                                        color: AppColors.snow,
+                                        shadows: [Shadow(blurRadius: 5)],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: uploading ? null : () => _uploadMockBatch(b),
+                      onPressed: uploading || selection.isEmpty
+                          ? null
+                          : () => _uploadSelected(b, selection),
                       icon: const Icon(Icons.upload_outlined),
                       label: Text(
                         uploading
                             ? 'Đang giao ảnh...'
-                            : 'Giao tối đa 5 ảnh mẫu',
+                            : 'Giao ${selection.length} ảnh đã chọn',
                       ),
                     ),
                   ],

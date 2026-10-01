@@ -23,6 +23,29 @@ class StorageScreen extends ConsumerStatefulWidget {
 
 class _StorageScreenState extends ConsumerState<StorageScreen> {
   _GalleryFilter filter = _GalleryFilter.all;
+  StorageTier? changingPlan;
+
+  Future<void> _choosePlan(StorageTier tier) async {
+    if (changingPlan != null) return;
+    setState(() => changingPlan = tier);
+    try {
+      await ref.read(storageTierProvider.notifier).choose(tier);
+      if (mounted) {
+        final plan = storagePlans.firstWhere((item) => item.tier == tier);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã chuyển sang gói ${plan.name}')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể đổi gói lưu trữ: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => changingPlan = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,18 +111,8 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
                     return StoragePlanCard(
                       plan: candidate,
                       selected: candidate.tier == tier,
-                      onChoose: () {
-                        ref
-                            .read(storageTierProvider.notifier)
-                            .choose(candidate.tier);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Đã chuyển sang gói ${candidate.name}',
-                            ),
-                          ),
-                        );
-                      },
+                      onChoose: () => _choosePlan(candidate.tier),
+                      busy: changingPlan == candidate.tier,
                     );
                   },
                 ),

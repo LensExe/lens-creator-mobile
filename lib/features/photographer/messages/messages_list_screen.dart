@@ -19,7 +19,29 @@ class MessagesListScreen extends ConsumerStatefulWidget {
 
 class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
   bool unreadOnly = false;
+  bool refreshing = false;
+  String? refreshError;
   String search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      refreshing = true;
+      refreshError = null;
+    });
+    try {
+      await ref.read(conversationsProvider.notifier).refresh();
+    } catch (error) {
+      if (mounted) setState(() => refreshError = '$error');
+    } finally {
+      if (mounted) setState(() => refreshing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +80,17 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 5, 16, 26),
             children: [
+              if (refreshing) ...[
+                const LinearProgressIndicator(minHeight: 2),
+                const SizedBox(height: 12),
+              ],
+              if (refreshError != null) ...[
+                TextButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: Text('Không thể tải tin nhắn. Thử lại: $refreshError'),
+                ),
+              ],
               CreatorPageHeader(
                 title: 'Trò chuyện',
                 subtitle: unread > 0

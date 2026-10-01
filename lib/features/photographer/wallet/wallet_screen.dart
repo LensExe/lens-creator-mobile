@@ -12,6 +12,7 @@ import '../../../domain/booking_rules.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
 import '../bookings/widgets/studio_booking_card.dart';
+import 'wallet_entry.dart';
 import 'wallet_provider.dart';
 
 class WalletScreen extends ConsumerWidget {
@@ -77,15 +78,52 @@ class WalletScreen extends ConsumerWidget {
     );
     controller.dispose();
     if (amount == null || !context.mounted) return;
-    ref.read(walletProvider.notifier).withdraw(amount);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Đã gửi yêu cầu rút ${formatDong(amount)}')),
-    );
+    try {
+      await ref.read(walletProvider.notifier).withdraw(amount);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã gửi yêu cầu rút ${formatDong(amount)}')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Không thể rút tiền: $error')));
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(walletProvider);
+    final entriesState = ref.watch(walletProvider);
+    return Scaffold(
+      backgroundColor: AppColors.snow,
+      appBar: AppBar(title: const Text('Ví của tôi')),
+      body: entriesState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Không thể tải lịch sử giao dịch'),
+              TextButton(
+                onPressed: () => ref.invalidate(walletProvider),
+                child: const Text('Thử lại'),
+              ),
+            ],
+          ),
+        ),
+        data: (entries) => _walletContent(context, ref, entries),
+      ),
+    );
+  }
+
+  Widget _walletContent(
+    BuildContext context,
+    WidgetRef ref,
+    List<WalletEntry> entries,
+  ) {
     final balance = entries.fold<int>(0, (sum, item) => sum + item.amount);
     final bookings = ref.watch(myBookingsProvider);
     final collaborations = ref.watch(myCollaborationsProvider);
@@ -109,88 +147,82 @@ class WalletScreen extends ConsumerWidget {
     final withdrawn = -entries
         .where((entry) => entry.amount < 0)
         .fold<int>(0, (sum, item) => sum + item.amount);
-    return Scaffold(
-      backgroundColor: AppColors.snow,
-      appBar: AppBar(title: const Text('Ví của tôi')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppTokens.contentMaxWidth,
-          ),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(21),
-                decoration: BoxDecoration(
-                  color: AppColors.obsidian,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Số dư khả dụng',
-                      style: TextStyle(color: AppColors.pebble, fontSize: 13),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      formatDong(balance),
-                      style: const TextStyle(
-                        color: AppColors.snow,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: balance <= 0
-                          ? null
-                          : () => _withdraw(context, ref, balance),
-                      child: const Text('Rút tiền về ngân hàng'),
-                    ),
-                  ],
-                ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(21),
+              decoration: BoxDecoration(
+                color: AppColors.obsidian,
+                borderRadius: BorderRadius.circular(AppTokens.radiusCard),
               ),
-              const SizedBox(height: 24),
-              CreatorSummaryStrip(
-                items: [
-                  CreatorSummaryItem('Chờ giải ngân', formatDong(pending)),
-                  CreatorSummaryItem('Nhận tháng này', formatDong(received)),
-                  CreatorSummaryItem('Đã rút', formatDong(withdrawn)),
-                ],
-              ),
-              const SizedBox(height: 28),
-              const CreatorSectionHeader(title: 'Lịch sử giao dịch'),
-              const SizedBox(height: 6),
-              if (entries.isEmpty)
-                const CreatorEmptyState(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Chưa có giao dịch',
-                )
-              else
-                for (final entry in entries) ...[
-                  CreatorListRow(
-                    icon: entry.amount >= 0
-                        ? Icons.south_west_rounded
-                        : Icons.north_east_rounded,
-                    title: entry.note,
-                    subtitle: DateFormat('dd/MM/yyyy HH:mm').format(entry.date),
-                    trailing: Text(
-                      '${entry.amount > 0 ? '+' : ''}${formatDong(entry.amount)}',
-                      style: TextStyle(
-                        color: entry.amount >= 0
-                            ? AppColors.success
-                            : AppColors.obsidian,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Số dư khả dụng',
+                    style: TextStyle(color: AppColors.pebble, fontSize: 13),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    formatDong(balance),
+                    style: const TextStyle(
+                      color: AppColors.snow,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const Divider(),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: balance <= 0
+                        ? null
+                        : () => _withdraw(context, ref, balance),
+                    child: const Text('Rút tiền về ngân hàng'),
+                  ),
                 ],
-            ],
-          ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            CreatorSummaryStrip(
+              items: [
+                CreatorSummaryItem('Chờ giải ngân', formatDong(pending)),
+                CreatorSummaryItem('Nhận tháng này', formatDong(received)),
+                CreatorSummaryItem('Đã rút', formatDong(withdrawn)),
+              ],
+            ),
+            const SizedBox(height: 28),
+            const CreatorSectionHeader(title: 'Lịch sử giao dịch'),
+            const SizedBox(height: 6),
+            if (entries.isEmpty)
+              const CreatorEmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'Chưa có giao dịch',
+              )
+            else
+              for (final entry in entries) ...[
+                CreatorListRow(
+                  icon: entry.amount >= 0
+                      ? Icons.south_west_rounded
+                      : Icons.north_east_rounded,
+                  title: entry.note,
+                  subtitle: DateFormat('dd/MM/yyyy HH:mm').format(entry.date),
+                  trailing: Text(
+                    '${entry.amount > 0 ? '+' : ''}${formatDong(entry.amount)}',
+                    style: TextStyle(
+                      color: entry.amount >= 0
+                          ? AppColors.success
+                          : AppColors.obsidian,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const Divider(),
+              ],
+          ],
         ),
       ),
     );

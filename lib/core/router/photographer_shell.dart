@@ -69,7 +69,20 @@ class PhotographerShell extends StatelessWidget {
     }
     if (location.startsWith('/photographer_home/packages')) return 2;
     if (location.startsWith('/photographer_home/messages')) return 3;
-    if (location.startsWith('/photographer_home/more')) return 4;
+    if (const [
+      '/photographer_home/more',
+      '/photographer_home/portfolio',
+      '/photographer_home/public_profile',
+      '/photographer_home/wallet',
+      '/photographer_home/achievements',
+      '/photographer_home/storage',
+      '/photographer_home/availability',
+      '/photographer_home/reviews',
+      '/photographer_home/assistant',
+      '/photographer_home/settings',
+    ].any(location.startsWith)) {
+      return 4;
+    }
     return 0;
   }
 

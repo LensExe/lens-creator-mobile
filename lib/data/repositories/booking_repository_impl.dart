@@ -25,10 +25,15 @@ class BookingRepositoryImpl implements BookingRepository {
       mockDataSource.addDeliveryPhotos(id, urls);
 
   @override
-  Future<Booking> inviteCollaborator(String id, Photographer photographer, int sharePct) =>
-      mockDataSource.inviteCollaborator(id, photographer, sharePct);
+  Future<Booking> inviteCollaborator(
+    String id,
+    Photographer photographer,
+    int sharePct,
+  ) => mockDataSource.inviteCollaborator(id, photographer, sharePct);
 
   @override
-  Future<Booking> respondToCollaboration(String id, CollaborationStatus status) =>
-      mockDataSource.respondToCollaboration(id, status);
+  Future<Booking> respondToCollaboration(
+    String id,
+    CollaborationStatus status,
+  ) => mockDataSource.respondToCollaboration(id, status);
 }

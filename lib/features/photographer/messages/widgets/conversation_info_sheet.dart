@@ -189,6 +189,21 @@ class _ConversationInfoSheet extends StatelessWidget {
                   },
                 ),
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final router = GoRouter.of(context);
+                    Navigator.pop(context);
+                    router.go('/photographer_home/bookings');
+                  },
+                  icon: const Icon(Icons.calendar_month_outlined, size: 17),
+                  label: const Text('Xem yêu cầu đặt lịch'),
+                ),
+              ),
+            ),
           ],
         ),
       ),

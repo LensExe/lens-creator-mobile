@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +15,7 @@ import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 import 'bookings/widgets/collaborators_panel.dart';
 import 'bookings/widgets/studio_booking_card.dart';
+import 'messages/conversation_navigation.dart';
 
 class BookingRequestDetailScreen extends ConsumerStatefulWidget {
   const BookingRequestDetailScreen({super.key, required this.bookingId});
@@ -125,6 +127,62 @@ class _BookingRequestDetailScreenState
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 32),
                 children: [
                   StudioBookingCard(booking: b, openDetail: false),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (b.contactPhone?.isNotEmpty == true)
+                        OutlinedButton.icon(
+                          onPressed: () => ScaffoldMessenger.of(context)
+                              .showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Số điện thoại: ${b.contactPhone}',
+                                  ),
+                                ),
+                              ),
+                          icon: const Icon(Icons.call_outlined, size: 17),
+                          label: const Text('Liên hệ'),
+                        ),
+                      FilledButton.tonalIcon(
+                        onPressed: () =>
+                            openClientConversation(context, ref, b),
+                        icon: const Icon(Icons.chat_bubble_outline, size: 17),
+                        label: const Text('Nhắn tin'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final route = GoRouterState.of(context).uri
+                              .toString();
+                          await Clipboard.setData(ClipboardData(text: route));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã sao chép liên kết lịch đặt'),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.share_outlined, size: 17),
+                        label: const Text('Chia sẻ'),
+                      ),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Tính năng tải hoá đơn VAT sẽ sớm khả dụng',
+                              ),
+                            ),
+                          ),
+                      icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                      label: const Text('Tải hoá đơn VAT'),
+                    ),
+                  ),
                   if (b.status == BookingStatus.pending) ...[
                     const SizedBox(height: 20),
                     Text(

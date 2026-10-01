@@ -21,32 +21,94 @@ class ChatDetailScreen extends ConsumerStatefulWidget {
 
 class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   final controller = TextEditingController();
+  final scrollController = ScrollController();
+  bool sending = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(conversationsProvider.notifier).markRead(widget.id);
+      if (mounted) {
+        ref
+            .read(conversationsProvider.notifier)
+            .markRead(widget.id)
+            .catchError((_) {});
+        _scrollToBottom();
+      }
     });
   }
 
   @override
   void dispose() {
     controller.dispose();
+    scrollController.dispose();
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = controller.text.trim();
-    if (text.isEmpty) return;
-    final user = ref.read(authUserProvider);
-    if (user == null) return;
-    ref.read(conversationsProvider.notifier).send(widget.id, text, user.id);
-    controller.clear();
+    if (text.isEmpty || sending) return;
+    if (ref.read(authUserProvider) == null) return;
+    setState(() => sending = true);
+    try {
+      await ref.read(conversationsProvider.notifier).send(widget.id, text);
+      if (!mounted) return;
+      controller.clear();
+      _scrollToBottom();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể gửi tin nhắn: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
+  }
+
+  Future<void> _toggleAssistant(bool enabled) async {
+    try {
+      await ref
+          .read(conversationsProvider.notifier)
+          .toggleAi(widget.id, enabled);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật trợ lý: $error')),
+        );
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(conversationsProvider, (previous, next) {
+      final previousCount = previous
+          ?.where((item) => item.id == widget.id)
+          .firstOrNull
+          ?.messages
+          .length;
+      final nextCount = next
+          .where((item) => item.id == widget.id)
+          .firstOrNull
+          ?.messages
+          .length;
+      if (previousCount != nextCount) {
+        _scrollToBottom();
+      }
+    });
     StudioConversation? conversation;
     for (final item in ref.watch(conversationsProvider)) {
       if (item.id == widget.id) {
@@ -130,9 +192,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
             ConversationAiControl(
               isEnabled: assistantActive,
               canToggle: assistantEnabled,
-              onChanged: (value) => ref
-                  .read(conversationsProvider.notifier)
-                  .toggleAi(widget.id, value),
+              onChanged: _toggleAssistant,
             ),
           Expanded(
             child: current.messages.isEmpty
@@ -143,6 +203,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     ),
                   )
                 : ListView.builder(
+                    controller: scrollController,
                     padding: const EdgeInsets.fromLTRB(15, 16, 15, 12),
                     itemCount: current.messages.length,
                     itemBuilder: (context, index) {
@@ -154,7 +215,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     },
                   ),
           ),
-          ChatComposer(controller: controller, onSend: _send),
+          ChatComposer(controller: controller, onSend: _send, busy: sending),
         ],
       ),
     );

@@ -5,14 +5,18 @@ import 'professional_badge_card.dart';
 
 class ProfessionalBadge {
   const ProfessionalBadge({
+    required this.id,
     required this.title,
     required this.description,
     required this.icon,
+    required this.isUnlocked,
   });
 
+  final String id;
   final String title;
   final String description;
   final IconData icon;
+  final bool isUnlocked;
 }
 
 class ProfessionalBadgesSection extends StatelessWidget {
@@ -34,6 +38,7 @@ class ProfessionalBadgesSection extends StatelessWidget {
           title: badge.title,
           description: badge.description,
           icon: badge.icon,
+          isUnlocked: badge.isUnlocked,
         ),
       ],
     ],

@@ -8,10 +8,12 @@ class ChatComposer extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onSend,
+    this.busy = false,
   });
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -34,6 +36,7 @@ class ChatComposer extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
+              enabled: !busy,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => onSend(),
               minLines: 1,
@@ -66,13 +69,22 @@ class ChatComposer extends StatelessWidget {
             width: 43,
             height: 43,
             child: IconButton.filled(
-              onPressed: onSend,
+              onPressed: busy ? null : onSend,
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.ember,
                 foregroundColor: AppColors.snow,
                 shape: const CircleBorder(),
               ),
-              icon: const Icon(Icons.send_rounded, size: 19),
+              icon: busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.snow,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded, size: 19),
               tooltip: 'Gửi tin nhắn',
             ),
           ),

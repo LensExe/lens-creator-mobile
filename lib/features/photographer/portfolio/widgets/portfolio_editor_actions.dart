@@ -7,10 +7,12 @@ class PortfolioEditorActions extends StatelessWidget {
     super.key,
     required this.onCancel,
     required this.onSave,
+    this.busy = false,
   });
 
   final VoidCallback onCancel;
   final VoidCallback onSave;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -33,7 +35,7 @@ class PortfolioEditorActions extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: onCancel,
+                onPressed: busy ? null : onCancel,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.graphite,
                   side: const BorderSide(color: AppColors.pebble),
@@ -48,7 +50,7 @@ class PortfolioEditorActions extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: FilledButton.icon(
-                onPressed: onSave,
+                onPressed: busy ? null : onSave,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.obsidian,
                   foregroundColor: AppColors.snow,
@@ -58,8 +60,8 @@ class PortfolioEditorActions extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.check_rounded, size: 17),
-                label: const Text(
-                  'Lưu hồ sơ',
+                label: Text(
+                  busy ? 'Đang lưu...' : 'Lưu hồ sơ',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

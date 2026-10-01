@@ -7,6 +7,19 @@ import '../domain/booking_rules.dart';
 import '../data/datasources/mock/mock_booking_data_source.dart';
 import '../data/repositories/booking_repository_impl.dart';
 import '../domain/repositories/booking_repository.dart';
+import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/photographer_repository.dart';
+import '../features/auth/data/mock_auth_repository.dart';
+import '../data/datasources/mock/mock_photographer_data_source.dart';
+import '../data/repositories/photographer_repository_impl.dart';
+
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => MockAuthRepository(),
+);
+
+final photographerRepositoryProvider = Provider<PhotographerRepository>(
+  (ref) => PhotographerRepositoryImpl(MockPhotographerDataSource()),
+);
 
 final bookingRepositoryProvider = Provider<BookingRepository>(
   (ref) => BookingRepositoryImpl(MockBookingDataSource(mockApiService)),
@@ -21,8 +34,9 @@ class AuthUserNotifier extends Notifier<User?> {
   void setUser(User? user) {
     state = user;
     MockDatabase.currentUser = user;
-    // When user changes, refresh bookings
-    ref.invalidate(asyncBookingsProvider);
+    // AsyncBookingsNotifier watches authUserProvider and reloads itself when
+    // the signed-in account changes. Invalidating it here creates a cycle
+    // while Riverpod is already rebuilding its dependent providers.
   }
 }
 
@@ -34,20 +48,21 @@ class PhotographersNotifier extends Notifier<List<Photographer>> {
   @override
   List<Photographer> build() => List.of(MockDatabase.photographers);
 
-  void update(Photographer photographer) {
+  Future<void> update(Photographer photographer) async {
+    final saved = await ref
+        .read(photographerRepositoryProvider)
+        .updatePhotographer(photographer);
     state = [
       for (final current in state)
-        if (current.id == photographer.id) photographer else current,
+        if (current.id == saved.id) saved else current,
     ];
-    final index = MockDatabase.photographers.indexWhere(
-      (p) => p.id == photographer.id,
-    );
-    if (index >= 0) MockDatabase.photographers[index] = photographer;
   }
 
-  void add(Photographer photographer) {
-    state = [...state, photographer];
-    MockDatabase.photographers.add(photographer);
+  Future<void> add(Photographer photographer) async {
+    final saved = await ref
+        .read(photographerRepositoryProvider)
+        .createPhotographer(photographer);
+    state = [...state, saved];
   }
 }
 
@@ -135,19 +150,29 @@ class AsyncBookingsNotifier extends AsyncNotifier<List<Booking>> {
     }
   }
 
-  Future<void> inviteCollaborator(String bookingId,
-      Photographer photographer, int sharePct) async {
+  Future<void> inviteCollaborator(
+    String bookingId,
+    Photographer photographer,
+    int sharePct,
+  ) async {
     final previous = state.value ?? [];
-    final updated = await ref.read(bookingRepositoryProvider)
+    final updated = await ref
+        .read(bookingRepositoryProvider)
         .inviteCollaborator(bookingId, photographer, sharePct);
-    state = AsyncData([for (final booking in previous)
-      if (booking.id == bookingId) updated else booking]);
+    state = AsyncData([
+      for (final booking in previous)
+        if (booking.id == bookingId) updated else booking,
+    ]);
     ref.read(bookingRevisionProvider.notifier).advance();
   }
 
-  Future<void> respondToCollaboration(String bookingId,
-      CollaborationStatus status) async {
-    await ref.read(bookingRepositoryProvider).respondToCollaboration(bookingId, status);
+  Future<void> respondToCollaboration(
+    String bookingId,
+    CollaborationStatus status,
+  ) async {
+    await ref
+        .read(bookingRepositoryProvider)
+        .respondToCollaboration(bookingId, status);
     ref.read(bookingRevisionProvider.notifier).advance();
   }
 }
@@ -179,12 +204,17 @@ class BookingRevisionNotifier extends Notifier<int> {
 }
 
 final bookingRevisionProvider = NotifierProvider<BookingRevisionNotifier, int>(
-    BookingRevisionNotifier.new);
+  BookingRevisionNotifier.new,
+);
 
 final myCollaborationsProvider = Provider<List<Booking>>((ref) {
   ref.watch(bookingRevisionProvider);
   final user = ref.watch(authUserProvider);
   if (user == null) return [];
-  return MockDatabase.bookings.where((booking) => booking.collaborators.any(
-      (item) => item.photographerId == user.id)).toList();
+  return MockDatabase.bookings
+      .where(
+        (booking) =>
+            booking.collaborators.any((item) => item.photographerId == user.id),
+      )
+      .toList();
 });

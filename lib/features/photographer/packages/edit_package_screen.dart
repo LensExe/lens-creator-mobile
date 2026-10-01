@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/creator_page_header.dart';
 import '../../../core/widgets/creator_section_header.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
+import 'widgets/package_editor_actions.dart';
+import 'widgets/package_editor_field.dart';
 
 class EditPackageScreen extends ConsumerStatefulWidget {
   const EditPackageScreen({super.key, required this.id});
@@ -25,6 +28,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
   final duration = TextEditingController();
   final deliveryDays = TextEditingController();
   bool initialized = false;
+  bool saving = false;
 
   @override
   void dispose() {
@@ -49,7 +53,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
     return null;
   }
 
-  void _save(Photographer profile) {
+  Future<void> _save(Photographer profile) async {
     if (!formKey.currentState!.validate()) return;
     final hours = double.parse(duration.text.trim().replaceAll(',', '.'));
     final package = PhotographerPackage(
@@ -71,12 +75,24 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
     } else {
       packages[index] = package;
     }
-    ref
-        .read(photographersProvider.notifier)
-        .update(profile.copyWith(packages: packages));
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Đã lưu gói dịch vụ')));
-    context.pop();
+    setState(() => saving = true);
+    try {
+      await ref
+          .read(photographersProvider.notifier)
+          .update(profile.copyWith(packages: packages));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã lưu gói dịch vụ')));
+      context.pop();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể lưu gói dịch vụ: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   Future<void> _delete(Photographer profile) async {
@@ -106,16 +122,27 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    ref
-        .read(photographersProvider.notifier)
-        .update(
-          profile.copyWith(
-            packages: profile.packages
-                .where((item) => item.id != widget.id)
-                .toList(),
-          ),
+    try {
+      setState(() => saving = true);
+      await ref
+          .read(photographersProvider.notifier)
+          .update(
+            profile.copyWith(
+              packages: profile.packages
+                  .where((item) => item.id != widget.id)
+                  .toList(),
+            ),
+          );
+      if (mounted) context.pop();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể xoá gói dịch vụ: $error')),
         );
-    context.pop();
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   @override
@@ -148,15 +175,24 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
     return Scaffold(
       backgroundColor: AppColors.snow,
       appBar: AppBar(
-        title: Text(widget.id == 'new' ? 'Thêm gói dịch vụ' : 'Chỉnh sửa gói'),
+        title: Text(widget.id == 'new' ? 'Thêm gói chụp' : 'Sửa gói chụp'),
         actions: [
           if (current != null)
             IconButton(
               tooltip: 'Xoá gói',
-              onPressed: () => _delete(profile),
+              onPressed: saving ? null : () => _delete(profile),
+              style: IconButton.styleFrom(
+                foregroundColor: AppColors.destructive,
+              ),
               icon: const Icon(Icons.delete_outline),
             ),
         ],
+      ),
+      bottomNavigationBar: PackageEditorActions(
+        onCancel: () => context.pop(),
+        onSave: () => _save(profile),
+        saveLabel: current == null ? 'Tạo gói chụp' : 'Lưu thay đổi',
+        busy: saving,
       ),
       body: Form(
         key: formKey,
@@ -166,72 +202,97 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
               maxWidth: AppTokens.contentMaxWidth,
             ),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               children: [
-                const Text(
-                  'Điều khoản gói được lưu vào từng lịch đặt của khách.',
-                  style: TextStyle(color: AppColors.steel, fontSize: 13),
+                CreatorPageHeader(
+                  title: current == null ? 'Tạo gói chụp' : 'Cập nhật gói chụp',
+                  subtitle: current == null
+                      ? 'Thiết lập nội dung và cam kết để khách chọn khi đặt lịch.'
+                      : 'Chỉnh sửa thông tin gói. Lịch đã đặt vẫn giữ điều khoản cũ.',
                 ),
                 const SizedBox(height: 24),
-                const CreatorSectionHeader(title: 'Thông tin gói'),
+                const CreatorSectionHeader(
+                  title: 'Thông tin hiển thị',
+                  subtitle: 'Tên và mô tả giúp khách hiểu phong cách gói chụp.',
+                ),
                 const SizedBox(height: 14),
-                _Field(
+                PackageEditorField(
                   controller: name,
                   label: 'Tên gói',
+                  hintText: 'Ví dụ: Chân dung cá nhân',
                   maxLength: 80,
+                  enabled: !saving,
                   validator: (value) =>
                       (value ?? '').trim().length < 2 ? 'Nhập tên gói' : null,
                 ),
-                _Field(
+                PackageEditorField(
                   controller: description,
                   label: 'Mô tả',
+                  hintText: 'Nội dung hoặc điểm nổi bật của gói',
                   maxLength: 160,
                   maxLines: 3,
+                  enabled: !saving,
                   validator: (value) => (value ?? '').length > 160
                       ? 'Mô tả tối đa 160 ký tự'
                       : null,
                 ),
-                _Field(
+                const SizedBox(height: 24),
+                const CreatorSectionHeader(
+                  title: 'Giá và cam kết',
+                  subtitle: 'Các thông tin này được lưu cùng lịch đặt mới.',
+                ),
+                const SizedBox(height: 14),
+                PackageEditorField(
                   controller: price,
-                  label: 'Giá (VNĐ)',
+                  label: 'Giá gói',
+                  suffixText: '₫',
                   keyboardType: TextInputType.number,
+                  enabled: !saving,
                   validator: (value) =>
                       _integer(value, 10000, 1000000000, 'Giá'),
                 ),
-                const SizedBox(height: 12),
-                const CreatorSectionHeader(title: 'Cam kết buổi chụp'),
-                const SizedBox(height: 14),
-                _Field(
-                  controller: photoCount,
-                  label: 'Số ảnh bàn giao',
-                  keyboardType: TextInputType.number,
-                  validator: (value) => _integer(value, 1, 500, 'Số ảnh'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: PackageEditorField(
+                        controller: photoCount,
+                        label: 'Ảnh bàn giao',
+                        suffixText: 'ảnh',
+                        keyboardType: TextInputType.number,
+                        enabled: !saving,
+                        validator: (value) => _integer(value, 1, 500, 'Số ảnh'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: PackageEditorField(
+                        controller: duration,
+                        label: 'Thời lượng',
+                        suffixText: 'giờ',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        enabled: !saving,
+                        validator: (value) {
+                          final parsed = double.tryParse(
+                            (value ?? '').replaceAll(',', '.'),
+                          );
+                          return parsed == null || parsed < 0.5 || parsed > 12
+                              ? 'Từ 0,5 đến 12 giờ'
+                              : null;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                _Field(
-                  controller: duration,
-                  label: 'Thời lượng (giờ)',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (value) {
-                    final parsed = double.tryParse(
-                      (value ?? '').replaceAll(',', '.'),
-                    );
-                    return parsed == null || parsed < 0.5 || parsed > 12
-                        ? 'Thời lượng từ 0,5 đến 12 giờ'
-                        : null;
-                  },
-                ),
-                _Field(
+                PackageEditorField(
                   controller: deliveryDays,
-                  label: 'Giao trong (ngày)',
+                  label: 'Thời gian giao ảnh',
+                  suffixText: 'ngày',
                   keyboardType: TextInputType.number,
+                  enabled: !saving,
                   validator: (value) => _integer(value, 1, 60, 'Số ngày'),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => _save(profile),
-                  child: const Text('Lưu gói dịch vụ'),
                 ),
               ],
             ),
@@ -240,34 +301,4 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       ),
     );
   }
-}
-
-class _Field extends StatelessWidget {
-  const _Field({
-    required this.controller,
-    required this.label,
-    required this.validator,
-    this.keyboardType,
-    this.maxLength,
-    this.maxLines = 1,
-  });
-  final TextEditingController controller;
-  final String label;
-  final String? Function(String?) validator;
-  final TextInputType? keyboardType;
-  final int? maxLength;
-  final int maxLines;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: TextFormField(
-      controller: controller,
-      decoration: InputDecoration(labelText: label),
-      keyboardType: keyboardType,
-      maxLength: maxLength,
-      maxLines: maxLines,
-      validator: validator,
-    ),
-  );
 }

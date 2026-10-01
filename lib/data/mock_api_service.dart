@@ -87,6 +87,13 @@ class MockApiService {
     if (booking.status != BookingStatus.held) {
       throw StateError('Chỉ có thể giao ảnh khi sàn đang giữ tiền');
     }
+    final promised = booking.promisedPhotos;
+    if (urls.isEmpty || urls.toSet().length != urls.length) {
+      throw StateError('Chọn ít nhất một ảnh khác nhau để giao');
+    }
+    if (promised == null || booking.deliveredPhotos + urls.length > promised) {
+      throw StateError('Số ảnh giao vượt quá cam kết của gói');
+    }
     final updated = booking.copyWith(
       deliveredPhotos: booking.deliveredPhotos + urls.length,
       deliveredPhotoUrls: [...booking.deliveredPhotoUrls, ...urls],
@@ -95,49 +102,75 @@ class MockApiService {
     return updated;
   }
 
-  Future<Booking> inviteCollaborator(String bookingId,
-      Photographer photographer, int sharePct) async {
+  Future<Booking> inviteCollaborator(
+    String bookingId,
+    Photographer photographer,
+    int sharePct,
+  ) async {
     await Future.delayed(_delay);
     final index = MockDatabase.bookings.indexWhere((b) => b.id == bookingId);
     if (index < 0) throw StateError('Không tìm thấy lịch đặt');
     final booking = MockDatabase.bookings[index];
     if (MockDatabase.currentUser?.id != booking.photographerId ||
-        (booking.status != BookingStatus.confirmed && booking.status != BookingStatus.held) ||
+        (booking.status != BookingStatus.confirmed &&
+            booking.status != BookingStatus.held) ||
         booking.deliveredPhotos > 0) {
       throw StateError('Không thể mời thợ cho lịch này');
     }
-    final used = booking.collaborators.fold<int>(0, (sum, item) => sum + item.sharePct);
+    final used = booking.collaborators.fold<int>(
+      0,
+      (sum, item) => sum + item.sharePct,
+    );
     if (photographer.id == booking.photographerId ||
-        booking.collaborators.any((item) => item.photographerId == photographer.id) ||
-        sharePct <= 0 || sharePct > 100 - used) {
+        booking.collaborators.any(
+          (item) => item.photographerId == photographer.id,
+        ) ||
+        sharePct <= 0 ||
+        sharePct > 100 - used) {
       throw StateError('Nhiếp ảnh gia hoặc tỷ lệ chia không hợp lệ');
     }
-    final updated = booking.copyWith(collaborators: [
-      ...booking.collaborators,
-      BookingCollaborator(photographerId: photographer.id,
-          photographerName: photographer.name, sharePct: sharePct),
-    ]);
+    final updated = booking.copyWith(
+      collaborators: [
+        ...booking.collaborators,
+        BookingCollaborator(
+          photographerId: photographer.id,
+          photographerName: photographer.name,
+          sharePct: sharePct,
+        ),
+      ],
+    );
     MockDatabase.bookings[index] = updated;
     return updated;
   }
 
-  Future<Booking> respondToCollaboration(String bookingId,
-      CollaborationStatus response) async {
+  Future<Booking> respondToCollaboration(
+    String bookingId,
+    CollaborationStatus response,
+  ) async {
     await Future.delayed(_delay);
     final index = MockDatabase.bookings.indexWhere((b) => b.id == bookingId);
     if (index < 0) throw StateError('Không tìm thấy lịch đặt');
     final booking = MockDatabase.bookings[index];
     final userId = MockDatabase.currentUser?.id;
-    final invitation = booking.collaborators.where((item) =>
-        item.photographerId == userId && item.status == CollaborationStatus.invited);
+    final invitation = booking.collaborators.where(
+      (item) =>
+          item.photographerId == userId &&
+          item.status == CollaborationStatus.invited,
+    );
     if (invitation.isEmpty ||
-        (response != CollaborationStatus.accepted && response != CollaborationStatus.declined)) {
+        (response != CollaborationStatus.accepted &&
+            response != CollaborationStatus.declined)) {
       throw StateError('Không có lời mời đang chờ');
     }
-    final updated = booking.copyWith(collaborators: [
-      for (final item in booking.collaborators)
-        if (item.photographerId == userId) item.copyWith(status: response) else item,
-    ]);
+    final updated = booking.copyWith(
+      collaborators: [
+        for (final item in booking.collaborators)
+          if (item.photographerId == userId)
+            item.copyWith(status: response)
+          else
+            item,
+      ],
+    );
     MockDatabase.bookings[index] = updated;
     return updated;
   }

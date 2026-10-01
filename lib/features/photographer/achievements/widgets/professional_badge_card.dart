@@ -8,11 +8,13 @@ class ProfessionalBadgeCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.icon,
+    required this.isUnlocked,
   });
 
   final String title;
   final String description;
   final IconData icon;
+  final bool isUnlocked;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -26,10 +28,14 @@ class ProfessionalBadgeCard extends StatelessWidget {
           width: 41,
           height: 41,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF0E8),
+            color: isUnlocked ? const Color(0xFFFFF0E8) : AppColors.mist,
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(icon, color: AppColors.ember, size: 21),
+          child: Icon(
+            isUnlocked ? icon : Icons.lock_outline_rounded,
+            color: isUnlocked ? AppColors.ember : AppColors.ash,
+            size: 21,
+          ),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -38,8 +44,8 @@ class ProfessionalBadgeCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.obsidian,
+                style: TextStyle(
+                  color: isUnlocked ? AppColors.obsidian : AppColors.steel,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),

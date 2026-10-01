@@ -1,7 +1,8 @@
 import '../../../domain/models/models.dart';
+import '../../../domain/repositories/auth_repository.dart';
 import '../../../data/mock_database.dart';
 
-class MockAuthRepository {
+class MockAuthRepository implements AuthRepository {
   final Map<String, ({User user, String password})> _accounts = {
     'nhiepanhgia@lens.vn': (
       user: MockDatabase.photographerUser,
@@ -9,6 +10,7 @@ class MockAuthRepository {
     ),
   };
 
+  @override
   Future<User> login(String email, String password) async {
     await Future.delayed(const Duration(milliseconds: 400));
     final account = _accounts[email.trim().toLowerCase()];
@@ -18,6 +20,7 @@ class MockAuthRepository {
     return account.user;
   }
 
+  @override
   Future<User> register(String name, String email, String password) async {
     await Future.delayed(const Duration(milliseconds: 400));
     final normalized = email.trim().toLowerCase();
