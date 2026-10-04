@@ -14,7 +14,9 @@ import '../../providers/data_providers.dart';
 import 'bookings/widgets/collaboration_invites.dart';
 import 'home/widgets/home_booking_card.dart';
 import 'messages/conversation_navigation.dart';
+import 'messages/conversation_provider.dart';
 import 'widgets/photographer_app_bar.dart';
+import 'wallet/wallet_provider.dart';
 
 class PhotographerHomeScreen extends ConsumerWidget {
   const PhotographerHomeScreen({super.key});
@@ -23,6 +25,18 @@ class PhotographerHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myPhotographerProvider);
     final state = ref.watch(incomingBookingsProvider);
+    final unreadMessages = ref
+        .watch(conversationsProvider)
+        .fold<int>(
+          0,
+          (total, conversation) => total + conversation.unreadCount,
+        );
+    final walletBalance = ref
+        .watch(walletProvider)
+        .whenOrNull(
+          data: (entries) =>
+              entries.fold<int>(0, (total, entry) => total + entry.amount),
+        );
     return Scaffold(
       backgroundColor: AppColors.mist,
       appBar: const PhotographerAppBar(),
@@ -138,6 +152,8 @@ class PhotographerHomeScreen extends ConsumerWidget {
                   const _WorkspaceToolsHeading(),
                   const SizedBox(height: 7),
                   _WorkspaceLinks(
+                    unreadMessages: unreadMessages,
+                    walletBalance: walletBalance,
                     onAvailability: () =>
                         context.push('/photographer_home/availability'),
                     onPortfolio: () =>
@@ -330,6 +346,8 @@ class _AttentionPanel extends StatelessWidget {
 
 class _WorkspaceLinks extends StatelessWidget {
   const _WorkspaceLinks({
+    required this.unreadMessages,
+    required this.walletBalance,
     required this.onAvailability,
     required this.onPortfolio,
     required this.onPackages,
@@ -337,6 +355,8 @@ class _WorkspaceLinks extends StatelessWidget {
     required this.onWallet,
   });
 
+  final int unreadMessages;
+  final int? walletBalance;
   final VoidCallback onAvailability;
   final VoidCallback onPortfolio;
   final VoidCallback onPackages;
@@ -374,12 +394,69 @@ class _WorkspaceLinks extends StatelessWidget {
         CreatorListRow(
           icon: Icons.chat_bubble_outline,
           title: 'Tin nhắn',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (unreadMessages > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.ember,
+                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                  ),
+                  child: Text(
+                    '$unreadMessages mới',
+                    style: const TextStyle(
+                      color: AppColors.snow,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.ash,
+              ),
+            ],
+          ),
           onTap: onMessages,
         ),
         const Divider(height: 1),
         CreatorListRow(
           icon: Icons.account_balance_wallet_outlined,
           title: 'Ví của tôi',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (walletBalance != null) ...[
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 110),
+                  child: Text(
+                    '${NumberFormat.decimalPattern('vi').format(walletBalance)} ₫',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.ash,
+              ),
+            ],
+          ),
           onTap: onWallet,
         ),
       ],

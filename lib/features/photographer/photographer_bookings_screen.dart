@@ -6,8 +6,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/creator_empty_state.dart';
 import '../../core/widgets/creator_loading_state.dart';
-import '../../core/widgets/creator_page_header.dart';
-import '../../core/widgets/creator_section_header.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 import 'bookings/widgets/booking_group_tabs.dart';
@@ -79,15 +77,7 @@ class _PhotographerBookingsScreenState
     final bookingsState = ref.watch(incomingBookingsProvider);
     return Scaffold(
       backgroundColor: AppColors.mist,
-      appBar: PhotographerAppBar(
-        actions: [
-          IconButton(
-            tooltip: 'Lịch làm việc',
-            onPressed: () => context.push('/photographer_home/availability'),
-            icon: const Icon(Icons.calendar_month_outlined),
-          ),
-        ],
-      ),
+      appBar: const PhotographerAppBar(),
       body: bookingsState.when(
         loading: () => const CreatorLoadingState(label: 'Đang tải lịch đặt…'),
         error: (error, _) => CreatorEmptyState(
@@ -147,16 +137,33 @@ class _PhotographerBookingsScreenState
                 maxWidth: AppTokens.contentMaxWidth,
               ),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
                 children: [
-                  CreatorPageHeader(
-                    title: 'Lịch đặt',
-                    subtitle: pending + due > 0
-                        ? '$pending yêu cầu chờ duyệt · $due buổi cần giao ảnh'
-                        : 'Theo dõi các buổi chụp và tiến độ bàn giao.',
+                  _BookingsPageHeader(
+                    pending: pending,
+                    due: due,
+                    onAvailability: () =>
+                        context.push('/photographer_home/availability'),
                   ),
-                  const SizedBox(height: 17),
-                  const CollaborationInvites(),
+                  const SizedBox(height: 14),
+                  const CollaborationInvites(compact: true),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: _BookingsSearchField(
+                          onChanged: (value) => setState(() => query = value),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _DateScopeDropdown(
+                        value: scope,
+                        onChanged: (value) => setState(() => scope = value),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   BookingGroupTabs(
                     selectedIndex: _BookingGroup.values.indexOf(group),
                     onSelected: (index) =>
@@ -168,36 +175,18 @@ class _PhotographerBookingsScreenState
                       BookingGroupTab('Đã huỷ', cancelled),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          onChanged: (value) => setState(() => query = value),
-                          decoration: const InputDecoration(
-                            hintText: 'Tìm tên khách, mã lịch...',
-                            prefixIcon: Icon(Icons.search_rounded, size: 20),
-                            prefixIconColor: AppColors.ash,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      _DateScopeDropdown(
-                        value: scope,
-                        onChanged: (value) => setState(() => scope = value),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  CreatorSectionHeader(
-                    title: 'Buổi chụp',
-                    count: filtered.length,
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 13),
+                  _BookingsResultHeading(count: filtered.length),
+                  const SizedBox(height: 10),
                   if (filtered.isEmpty)
-                    const CreatorEmptyState(
+                    CreatorEmptyState(
                       icon: Icons.event_busy_outlined,
-                      title: 'Không có lịch chụp phù hợp',
+                      title: query.trim().isNotEmpty
+                          ? 'Không tìm thấy lịch đặt phù hợp'
+                          : 'Không có lịch chụp phù hợp',
+                      description: query.trim().isNotEmpty
+                          ? 'Thử tìm bằng tên khách, mã lịch hoặc địa điểm khác.'
+                          : 'Lịch đặt theo trạng thái và thời gian này sẽ xuất hiện ở đây.',
                     )
                   else
                     for (final booking in filtered)
@@ -218,6 +207,199 @@ class _PhotographerBookingsScreenState
   }
 }
 
+class _BookingsPageHeader extends StatelessWidget {
+  const _BookingsPageHeader({
+    required this.pending,
+    required this.due,
+    required this.onAvailability,
+  });
+
+  final int pending;
+  final int due;
+  final VoidCallback onAvailability;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 3,
+              children: [
+                const Text(
+                  'Lịch đặt',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 24,
+                    height: 1.15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.ember.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                  ),
+                  child: Text(
+                    '$pending mới',
+                    style: const TextStyle(
+                      color: AppColors.ember,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              pending + due > 0
+                  ? '$pending yêu cầu chờ duyệt · $due buổi cần giao ảnh'
+                  : 'Theo dõi các buổi chụp và tiến độ bàn giao.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.steel,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      OutlinedButton.icon(
+        onPressed: onAvailability,
+        icon: const Icon(Icons.calendar_month_outlined, size: 16),
+        label: const Text('Lịch trống'),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 34),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          backgroundColor: AppColors.snow,
+          foregroundColor: AppColors.ink,
+          side: const BorderSide(color: Color(0xFFE8E8ED)),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _BookingsSearchField extends StatelessWidget {
+  const _BookingsSearchField({required this.onChanged});
+
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 40),
+    child: TextField(
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Tìm tên khách, mã lịch, địa điểm...',
+        hintStyle: const TextStyle(color: AppColors.ash, fontSize: 12),
+        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+        prefixIconColor: AppColors.ash,
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 38,
+          minHeight: 40,
+        ),
+        isDense: true,
+        filled: true,
+        fillColor: AppColors.snow,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE8E8ED)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.ink, width: 1),
+        ),
+      ),
+    ),
+  );
+}
+
+class _BookingsResultHeading extends StatelessWidget {
+  const _BookingsResultHeading({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    alignment: WrapAlignment.spaceBetween,
+    spacing: 8,
+    runSpacing: 6,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Buổi chụp',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECECEE),
+              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                color: AppColors.graphite,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Sắp xếp: ',
+            style: TextStyle(color: AppColors.steel, fontSize: 10.5),
+          ),
+          Text(
+            'Gần nhất',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
 class _DateScopeDropdown extends StatelessWidget {
   const _DateScopeDropdown({required this.value, required this.onChanged});
 
@@ -226,13 +408,13 @@ class _DateScopeDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 48,
-    width: 126,
-    padding: const EdgeInsets.only(left: 10, right: 6),
+    height: 40,
+    width: 119,
+    padding: const EdgeInsets.only(left: 8, right: 4),
     decoration: BoxDecoration(
       color: AppColors.snow,
-      border: Border.all(color: AppColors.fog),
-      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: const Color(0xFFE8E8ED)),
+      borderRadius: BorderRadius.circular(12),
     ),
     child: DropdownButtonHideUnderline(
       child: DropdownButton<_DateScope>(
@@ -240,9 +422,9 @@ class _DateScopeDropdown extends StatelessWidget {
         isExpanded: true,
         icon: const Icon(Icons.expand_more_rounded, size: 18),
         style: const TextStyle(
-          color: AppColors.graphite,
+          color: AppColors.ink,
           fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
         items: const [
           DropdownMenuItem(value: _DateScope.all, child: Text('Mọi ngày')),
