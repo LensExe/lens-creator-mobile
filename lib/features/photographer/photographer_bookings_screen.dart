@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/creator_empty_state.dart';
+import '../../core/widgets/creator_loading_state.dart';
 import '../../core/widgets/creator_page_header.dart';
 import '../../core/widgets/creator_section_header.dart';
-import '../../core/widgets/creator_summary_strip.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 import 'bookings/widgets/booking_group_tabs.dart';
@@ -78,7 +78,7 @@ class _PhotographerBookingsScreenState
   Widget build(BuildContext context) {
     final bookingsState = ref.watch(incomingBookingsProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: PhotographerAppBar(
         actions: [
           IconButton(
@@ -89,55 +89,22 @@ class _PhotographerBookingsScreenState
         ],
       ),
       body: bookingsState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: AppColors.snow,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.cloud_off_outlined,
-                    color: AppColors.steel,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Không thể tải lịch đặt',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                TextButton(
-                  onPressed: () => ref.invalidate(asyncBookingsProvider),
-                  child: const Text('Thử lại'),
-                ),
-              ],
-            ),
-          ),
+        loading: () => const CreatorLoadingState(label: 'Đang tải lịch đặt…'),
+        error: (error, _) => CreatorEmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: 'Không thể tải lịch đặt',
+          description: 'Kiểm tra kết nối rồi thử lại.',
+          actionLabel: 'Thử lại',
+          onAction: () => ref.invalidate(asyncBookingsProvider),
         ),
         data: (bookings) {
           final today = DateUtils.dateOnly(DateTime.now());
-          final weekEnd = today.add(const Duration(days: 7));
           final pending = bookings
               .where((b) => b.status == BookingStatus.pending)
               .length;
           final due = bookings
               .where((b) => b.status == BookingStatus.held)
               .length;
-          final upcoming = bookings.where((b) {
-            final date = DateTime.tryParse(b.date);
-            return b.status == BookingStatus.confirmed &&
-                date != null &&
-                !date.isBefore(today) &&
-                !date.isAfter(weekEnd);
-          }).length;
           final completed = bookings
               .where((b) => b.status == BookingStatus.released)
               .length;
@@ -241,17 +208,6 @@ class _PhotographerBookingsScreenState
                         onMessage: () =>
                             openClientConversation(context, ref, booking),
                       ),
-                  const SizedBox(height: 26),
-                  const CreatorSectionHeader(title: 'Tổng quan'),
-                  const SizedBox(height: 12),
-                  CreatorSummaryStrip(
-                    items: [
-                      CreatorSummaryItem('Chờ duyệt', '$pending'),
-                      CreatorSummaryItem('Tuần này', '$upcoming'),
-                      CreatorSummaryItem('Cần giao ảnh', '$due'),
-                      CreatorSummaryItem('Hoàn thành', '$completed'),
-                    ],
-                  ),
                 ],
               ),
             ),

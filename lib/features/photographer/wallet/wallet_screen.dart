@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/creator_empty_state.dart';
+import '../../../core/widgets/creator_loading_state.dart';
 import '../../../core/widgets/creator_list_row.dart';
 import '../../../core/widgets/creator_section_header.dart';
 import '../../../core/widgets/creator_summary_strip.dart';
@@ -98,21 +99,17 @@ class WalletScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final entriesState = ref.watch(walletProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Ví của tôi')),
       body: entriesState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Không thể tải lịch sử giao dịch'),
-              TextButton(
-                onPressed: () => ref.invalidate(walletProvider),
-                child: const Text('Thử lại'),
-              ),
-            ],
-          ),
+        loading: () =>
+            const CreatorLoadingState(label: 'Đang tải lịch sử giao dịch…'),
+        error: (error, _) => CreatorEmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: 'Không thể tải lịch sử giao dịch',
+          description: 'Kiểm tra kết nối rồi thử tải lại.',
+          actionLabel: 'Thử lại',
+          onAction: () => ref.invalidate(walletProvider),
         ),
         data: (entries) => _walletContent(context, ref, entries),
       ),

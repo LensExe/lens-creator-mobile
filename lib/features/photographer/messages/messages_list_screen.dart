@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/creator_page_header.dart';
+import '../../../providers/data_providers.dart';
 import 'conversation_provider.dart';
 import 'widgets/conversation_preview_tile.dart';
 import 'widgets/messages_empty_state.dart';
@@ -46,6 +47,7 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
   @override
   Widget build(BuildContext context) {
     final conversations = ref.watch(conversationsProvider);
+    final bookings = ref.watch(myBookingsProvider);
     final unread = conversations
         .where((conversation) => conversation.unreadCount > 0)
         .length;
@@ -70,7 +72,7 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
         : 'Chuyển sang “Tất cả” để xem lại các cuộc trò chuyện.';
 
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Tin nhắn')),
       body: Center(
         child: ConstrainedBox(
@@ -129,6 +131,12 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                 for (final conversation in filtered) ...[
                   ConversationPreviewTile(
                     conversation: conversation,
+                    booking: bookings
+                        .where(
+                          (booking) =>
+                              booking.clientId == conversation.participantId,
+                        )
+                        .firstOrNull,
                     onTap: () => context.push(
                       '/photographer_home/messages/${conversation.id}',
                     ),

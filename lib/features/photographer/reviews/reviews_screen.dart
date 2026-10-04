@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/creator_empty_state.dart';
+import '../../../core/widgets/creator_loading_state.dart';
 import '../../../core/widgets/creator_page_header.dart';
 import '../../../core/widgets/review_item.dart';
 import '../../../domain/models/review.dart';
@@ -19,10 +20,10 @@ class ReviewsScreen extends ConsumerWidget {
     final profile = ref.watch(myPhotographerProvider);
     final reviewState = ref.watch(photographerReviewsProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Đánh giá')),
       body: reviewState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CreatorLoadingState(label: 'Đang tải đánh giá…'),
         error: (error, _) => CreatorEmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Không thể tải đánh giá',

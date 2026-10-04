@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/creator_page_header.dart';
+import '../../../core/widgets/creator_section_header.dart';
 import '../../../providers/data_providers.dart';
 import '../widgets/photographer_app_bar.dart';
 import 'schedule_provider.dart';
 import 'widgets/availability_overview.dart';
 import 'widgets/availability_save_bar.dart';
+import 'widgets/calendar_view.dart';
 import 'widgets/day_schedule_card.dart';
 import 'widgets/weekly_schedule_card.dart';
 import 'work_schedule.dart';
@@ -98,6 +101,12 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
     final saved = ref.watch(scheduleProvider);
     final schedule = draft ?? saved;
     final bookings = ref.watch(myBookingsProvider);
+    final firstSelectable = DateUtils.dateOnly(
+      DateTime.now().add(const Duration(days: 1)),
+    );
+    final lastSelectable = DateUtils.dateOnly(
+      DateTime.now().add(const Duration(days: 35)),
+    );
     final key = WorkSchedule.iso(selected);
     final workingSlots = schedule.weekly[selected.weekday % 7];
     final busySlots = schedule.busy[key] ?? <String>{};
@@ -115,6 +124,18 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
         if (bookings.any((booking) => schedule.isBooked(booking, key, slot)))
           slot,
     };
+    final bookedDays = <DateTime>[];
+    for (final booking in bookings) {
+      final date = DateTime.tryParse(booking.date);
+      if (date == null) continue;
+      final day = DateUtils.dateOnly(date);
+      final bookingKey = WorkSchedule.iso(day);
+      if (WorkSchedule.slots.any(
+        (slot) => schedule.isBooked(booking, bookingKey, slot),
+      )) {
+        bookedDays.add(day);
+      }
+    }
     final availableCount = workingSlots
         .where(
           (slot) => !busySlots.contains(slot) && !bookedSlots.contains(slot),
@@ -142,7 +163,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
     }).length;
 
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: PhotographerAppBar(
         actions: [
           IconButton(
@@ -167,26 +188,27 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 17, 16, 26),
             children: [
-              const Text(
-                'Lịch làm việc',
-                style: TextStyle(
-                  color: AppColors.obsidian,
-                  fontSize: 25,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
+              const CreatorPageHeader(
+                title: 'Lịch làm việc',
+                subtitle: 'Sắp xếp thời gian nhận lịch và những lúc bạn bận.',
               ),
-              const SizedBox(height: 5),
-              const Text(
-                'Sắp xếp thời gian nhận lịch và những lúc bạn bận.',
-                style: TextStyle(
-                  color: AppColors.steel,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
+              const SizedBox(height: 20),
+              CreatorSectionHeader(
+                title: 'Lịch tháng',
+                subtitle: 'Chấm xanh lá đánh dấu ngày có lịch chụp.',
               ),
-              const SizedBox(height: 17),
+              const SizedBox(height: 10),
+              CalendarView(
+                selectedDay: selected,
+                firstDay: firstSelectable,
+                lastDay: lastSelectable,
+                bookedDays: bookedDays,
+                onDaySelected: (day) => setState(() => selected = day),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 21),
+                child: Divider(height: 1),
+              ),
               WeeklyScheduleCard(
                 schedule: schedule,
                 selectedWeekday: selectedWeekday,

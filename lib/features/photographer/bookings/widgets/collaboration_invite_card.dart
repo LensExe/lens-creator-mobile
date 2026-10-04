@@ -15,6 +15,7 @@ class CollaborationInviteCard extends StatelessWidget {
     required this.busy,
     required this.onAccept,
     required this.onDecline,
+    this.subdued = false,
   });
 
   final Booking booking;
@@ -23,13 +24,15 @@ class CollaborationInviteCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+  final bool subdued;
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppColors.emberSoft,
+      color: subdued ? AppColors.snow : AppColors.emberSoft,
       borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+      border: subdued ? Border.all(color: AppColors.fog) : null,
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/creator_empty_state.dart';
+import '../../../core/widgets/creator_loading_state.dart';
 import '../../../core/widgets/creator_page_header.dart';
 import '../../../core/widgets/creator_section_header.dart';
 import '../../../domain/models/models.dart';
@@ -64,12 +65,18 @@ class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(incomingBookingsProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Ảnh buổi chụp')),
       body: state.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Không thể tải bộ ảnh: $error')),
+        loading: () =>
+            const CreatorLoadingState(label: 'Đang tải ảnh buổi chụp…'),
+        error: (error, _) => CreatorEmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: 'Không thể tải bộ ảnh',
+          description: '$error',
+          actionLabel: 'Thử lại',
+          onAction: () => ref.invalidate(asyncBookingsProvider),
+        ),
         data: (items) {
           Booking? booking;
           for (final item in items) {
@@ -79,7 +86,10 @@ class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
             }
           }
           if (booking == null) {
-            return const Center(child: Text('Không tìm thấy lịch chụp'));
+            return const CreatorEmptyState(
+              icon: Icons.event_busy_outlined,
+              title: 'Không tìm thấy lịch chụp',
+            );
           }
           final b = booking;
           final portfolio =

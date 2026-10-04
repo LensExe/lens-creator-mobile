@@ -192,7 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       twoFactorInitialized = true;
     }
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Cài đặt')),
       body: Center(
         child: ConstrainedBox(

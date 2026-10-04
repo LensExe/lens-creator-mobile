@@ -8,7 +8,9 @@ import '../../../../providers/data_providers.dart';
 import 'collaboration_invite_card.dart';
 
 class CollaborationInvites extends ConsumerStatefulWidget {
-  const CollaborationInvites({super.key});
+  const CollaborationInvites({super.key, this.subdued = false});
+
+  final bool subdued;
 
   @override
   ConsumerState<CollaborationInvites> createState() =>
@@ -60,69 +62,76 @@ class _CollaborationInvitesState extends ConsumerState<CollaborationInvites> {
         )
         .toList();
     if (invites.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.handshake_outlined,
-              size: 19,
-              color: AppColors.ember,
-            ),
-            const SizedBox(width: 7),
-            const Expanded(
-              child: Text(
-                'Lời mời liên kết',
-                style: TextStyle(
-                  color: AppColors.obsidian,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+    return Padding(
+      padding: EdgeInsets.only(top: widget.subdued ? 8 : 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.handshake_outlined,
+                size: 19,
+                color: AppColors.ember,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Lời mời liên kết',
+                  style: TextStyle(
+                    color: AppColors.obsidian,
+                    fontSize: widget.subdued ? 14 : 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFEEE5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${invites.length} mới',
-                style: const TextStyle(
-                  color: AppColors.ember,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: widget.subdued
+                      ? AppColors.mist
+                      : const Color(0xFFFFEEE5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${invites.length} mới',
+                  style: TextStyle(
+                    color: widget.subdued ? AppColors.steel : AppColors.ember,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        for (final booking in invites) ...[
-          Builder(
-            builder: (context) {
-              final entry = booking.collaborators.firstWhere(
-                (item) => item.photographerId == user!.id,
-              );
-              final amount =
-                  (BookingRules.payout(booking.price) * entry.sharePct / 100)
-                      .round();
-              return CollaborationInviteCard(
-                booking: booking,
-                collaborator: entry,
-                amount: amount,
-                busy: responding == booking.id,
-                onAccept: () => _respond(booking, CollaborationStatus.accepted),
-                onDecline: () =>
-                    _respond(booking, CollaborationStatus.declined),
-              );
-            },
+            ],
           ),
           const SizedBox(height: 10),
+          for (final booking in invites) ...[
+            Builder(
+              builder: (context) {
+                final entry = booking.collaborators.firstWhere(
+                  (item) => item.photographerId == user!.id,
+                );
+                final amount =
+                    (BookingRules.payout(booking.price) * entry.sharePct / 100)
+                        .round();
+                return CollaborationInviteCard(
+                  booking: booking,
+                  collaborator: entry,
+                  amount: amount,
+                  busy: responding == booking.id,
+                  subdued: widget.subdued,
+                  onAccept: () =>
+                      _respond(booking, CollaborationStatus.accepted),
+                  onDecline: () =>
+                      _respond(booking, CollaborationStatus.declined),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 8),
         ],
-        const SizedBox(height: 8),
-      ],
+      ),
     );
   }
 }

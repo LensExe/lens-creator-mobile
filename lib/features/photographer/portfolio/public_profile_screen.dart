@@ -22,7 +22,7 @@ class PublicProfileScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: AppColors.snow,
+        backgroundColor: AppColors.mist,
         appBar: AppBar(
           title: const Text('Xem hồ sơ công khai'),
           actions: [

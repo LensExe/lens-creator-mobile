@@ -6,13 +6,15 @@ import 'app_tokens.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
-    final baseTextTheme = GoogleFonts.interTextTheme();
+    final baseTextTheme = GoogleFonts.interTextTheme(
+      ThemeData.light().textTheme,
+    );
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       primaryColor: AppColors.ember,
-      scaffoldBackgroundColor: AppColors.snow,
+      scaffoldBackgroundColor: AppColors.mist,
       colorScheme: const ColorScheme.light(
         primary: AppColors.ember,
         secondary: AppColors.obsidian,
@@ -24,7 +26,7 @@ class AppTheme {
         onError: AppColors.snow,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.snow,
+        backgroundColor: AppColors.mist,
         foregroundColor: AppColors.obsidian,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -40,6 +42,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.snow,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           side: const BorderSide(color: AppColors.fog),
           borderRadius: BorderRadius.circular(AppTokens.radiusCard),
@@ -112,6 +115,19 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppTokens.radiusPill),
         ),
         labelStyle: const TextStyle(color: AppColors.graphite, fontSize: 12),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        selectedItemColor: AppColors.obsidian,
+        unselectedItemColor: AppColors.steel,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        showUnselectedLabels: true,
+        selectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(fontSize: 11),
       ),
       textTheme: baseTextTheme.copyWith(
         displayLarge: baseTextTheme.displayLarge?.copyWith(

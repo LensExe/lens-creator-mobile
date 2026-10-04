@@ -19,7 +19,7 @@ class PackagesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: const PhotographerAppBar(),
       body: profile == null
           ? const Center(

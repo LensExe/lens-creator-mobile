@@ -487,6 +487,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(seconds: 2));
     expect(find.textContaining('Chào, Lý Gia Hân'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Lời mời liên kết'),
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Lời mời liên kết'), findsOneWidget);
     await tester.tap(find.text('Gói chụp'));
     await tester.pumpAndSettle();

@@ -22,7 +22,11 @@ class CreatorPageHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.headlineMedium),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineMedium
+                  ?.copyWith(fontSize: 26, height: 1.12, letterSpacing: -0.7),
+            ),
             if (subtitle != null) ...[
               const SizedBox(height: 5),
               Text(
@@ -30,7 +34,7 @@ class CreatorPageHeader extends StatelessWidget {
                 style: const TextStyle(
                   color: AppColors.steel,
                   fontSize: 13,
-                  height: 1.4,
+                  height: 1.5,
                 ),
               ),
             ],

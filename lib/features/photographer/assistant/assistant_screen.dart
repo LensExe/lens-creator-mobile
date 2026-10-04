@@ -113,7 +113,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Trợ lý AI')),
       bottomNavigationBar: AssistantEditorActions(
         onCancel: () => context.pop(),

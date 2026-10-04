@@ -13,50 +13,62 @@ class PhotographerShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(index, context),
-        height: 68,
-        elevation: 0,
-        backgroundColor: AppColors.snow,
-        indicatorColor: AppColors.emberSoft,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded, color: AppColors.ember),
-            label: 'Trang chủ',
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.snow,
+            border: Border(top: BorderSide(color: AppColors.fog)),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(
-              Icons.calendar_month_rounded,
-              color: AppColors.ember,
-            ),
-            label: 'Lịch đặt',
+          child: NavigationBar(
+            selectedIndex: _calculateSelectedIndex(context),
+            onDestinationSelected: (index) => _onItemTapped(index, context),
+            height: 64,
+            elevation: 0,
+            backgroundColor: AppColors.snow,
+            indicatorColor: AppColors.emberSoft,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded, color: AppColors.ember),
+                label: 'Trang chủ',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                selectedIcon: Icon(
+                  Icons.calendar_month_rounded,
+                  color: AppColors.ember,
+                ),
+                label: 'Lịch đặt',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.photo_camera_outlined),
+                selectedIcon: Icon(
+                  Icons.photo_camera_rounded,
+                  color: AppColors.ember,
+                ),
+                label: 'Gói chụp',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.chat_bubble_outline),
+                selectedIcon: Icon(
+                  Icons.chat_bubble_rounded,
+                  color: AppColors.ember,
+                ),
+                label: 'Tin nhắn',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.grid_view_outlined),
+                selectedIcon: Icon(
+                  Icons.grid_view_rounded,
+                  color: AppColors.ember,
+                ),
+                label: 'Khác',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.photo_camera_outlined),
-            selectedIcon: Icon(
-              Icons.photo_camera_rounded,
-              color: AppColors.ember,
-            ),
-            label: 'Gói chụp',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(
-              Icons.chat_bubble_rounded,
-              color: AppColors.ember,
-            ),
-            label: 'Tin nhắn',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded, color: AppColors.ember),
-            label: 'Khác',
-          ),
-        ],
+        ),
       ),
     );
   }

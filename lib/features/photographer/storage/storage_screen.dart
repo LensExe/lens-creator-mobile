@@ -73,7 +73,7 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
         .length;
 
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Lưu trữ ảnh')),
       body: Center(
         child: ConstrainedBox(

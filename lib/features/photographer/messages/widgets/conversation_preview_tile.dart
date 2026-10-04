@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../domain/booking_rules.dart';
+import '../../../../domain/models/models.dart';
 import '../conversation_provider.dart';
 import 'conversation_avatar.dart';
 
@@ -10,10 +12,12 @@ class ConversationPreviewTile extends StatelessWidget {
     super.key,
     required this.conversation,
     required this.onTap,
+    this.booking,
   });
 
   final StudioConversation conversation;
   final VoidCallback onTap;
+  final Booking? booking;
 
   @override
   Widget build(BuildContext context) {
@@ -70,13 +74,26 @@ class ConversationPreviewTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 5),
+                    if (booking != null) ...[
+                      Text(
+                        '${booking!.style} · ${BookingRules.statusLabel(booking!.status)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ember,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                    ],
                     Text(
                       lastMessage?.text ?? 'Chưa có tin nhắn',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: hasUnread ? AppColors.graphite : AppColors.steel,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: hasUnread
                             ? FontWeight.w600
                             : FontWeight.w400,

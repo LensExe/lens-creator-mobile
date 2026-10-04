@@ -156,7 +156,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   Widget build(BuildContext context) {
     final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: PhotographerAppBar(
         actions: [
           if (profile != null && !editing) ...[

@@ -28,7 +28,8 @@ class CreatorSectionHeader extends StatelessWidget {
           children: [
             Text(
               count == null ? title : '$title  $count',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontSize: 18, letterSpacing: -0.35),
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 4),

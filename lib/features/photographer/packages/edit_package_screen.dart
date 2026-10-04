@@ -173,7 +173,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       initialized = true;
     }
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(
         title: Text(widget.id == 'new' ? 'Thêm gói chụp' : 'Sửa gói chụp'),
         actions: [

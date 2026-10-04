@@ -92,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.snow,
+    backgroundColor: AppColors.mist,
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(

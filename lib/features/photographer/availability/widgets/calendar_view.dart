@@ -5,11 +5,17 @@ import 'package:lens_creator_mobile/core/widgets/surface_card.dart';
 
 class CalendarView extends StatelessWidget {
   final DateTime selectedDay;
+  final DateTime firstDay;
+  final DateTime lastDay;
+  final List<DateTime> bookedDays;
   final Function(DateTime) onDaySelected;
 
   const CalendarView({
     super.key,
     required this.selectedDay,
+    required this.firstDay,
+    required this.lastDay,
+    required this.bookedDays,
     required this.onDaySelected,
   });
 
@@ -17,8 +23,8 @@ class CalendarView extends StatelessWidget {
   Widget build(BuildContext context) {
     return SurfaceCard(
       child: TableCalendar(
-        firstDay: DateTime.utc(2020, 10, 16),
-        lastDay: DateTime.utc(2030, 3, 14),
+        firstDay: firstDay,
+        lastDay: lastDay,
         focusedDay: selectedDay,
         selectedDayPredicate: (day) {
           return isSameDay(selectedDay, day);
@@ -60,18 +66,16 @@ class CalendarView extends StatelessWidget {
           ),
           outsideDaysVisible: false,
         ),
-        // Mocking some busy days (rendering markers for UI demonstration)
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, date, events) {
-            // Hardcode some busy days for UI demonstration
-            if (date.day % 4 == 0 && !isSameDay(date, selectedDay)) {
+            if (bookedDays.any((bookedDay) => isSameDay(bookedDay, date))) {
               return Positioned(
                 bottom: 6,
                 child: Container(
-                  width: 6,
-                  height: 6,
+                  width: 5,
+                  height: 5,
                   decoration: const BoxDecoration(
-                    color: AppColors.ember,
+                    color: AppColors.success,
                     shape: BoxShape.circle,
                   ),
                 ),

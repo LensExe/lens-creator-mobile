@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/creator_empty_state.dart';
+import '../../../core/widgets/creator_loading_state.dart';
 import '../../../core/widgets/creator_page_header.dart';
 import '../../../core/widgets/creator_section_header.dart';
 import 'achievement_provider.dart';
@@ -90,7 +91,7 @@ class AchievementsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final achievementState = ref.watch(photographerAchievementsProvider);
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(
         title: const Text('Thành tựu'),
         actions: [
@@ -102,7 +103,7 @@ class AchievementsScreen extends ConsumerWidget {
         ],
       ),
       body: achievementState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CreatorLoadingState(label: 'Đang tải thành tựu…'),
         error: (error, _) => CreatorEmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Không thể tải thành tựu',

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/booking_rules.dart';
+import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
 import '../assistant/assistant_provider.dart';
 import 'conversation_provider.dart';
@@ -119,7 +122,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 
     if (conversation == null) {
       return const Scaffold(
-        backgroundColor: AppColors.snow,
+        backgroundColor: AppColors.mist,
         body: Center(child: Text('Không tìm thấy hội thoại')),
       );
     }
@@ -134,7 +137,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.snow,
+      backgroundColor: AppColors.mist,
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
@@ -188,6 +191,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       ),
       body: Column(
         children: [
+          if (bookings.isNotEmpty) _BookingContext(booking: bookings.first),
           if (!current.participantIsPhotographer)
             ConversationAiControl(
               isEnabled: assistantActive,
@@ -217,6 +221,63 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
           ),
           ChatComposer(controller: controller, onSend: _send, busy: sending),
         ],
+      ),
+    );
+  }
+}
+
+class _BookingContext extends StatelessWidget {
+  const _BookingContext({required this.booking});
+
+  final Booking booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateTime.tryParse(booking.date);
+    final dateLabel = date == null
+        ? booking.date
+        : DateFormat('dd/MM/yyyy').format(date);
+    return Container(
+      color: AppColors.emberSoft,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.photo_camera_outlined,
+              color: AppColors.ember,
+              size: 18,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${booking.style}${booking.packageName == null ? '' : ' · ${booking.packageName}'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.obsidian,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${BookingRules.statusLabel(booking.status)} · $dateLabel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.graphite,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
