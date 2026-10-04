@@ -6,7 +6,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
-import '../widgets/photographer_app_bar.dart';
 import 'widgets/portfolio_editor_actions.dart';
 import 'widgets/portfolio_editor_form.dart';
 import 'widgets/portfolio_profile_view.dart';
@@ -109,39 +108,10 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   }
 
   Future<void> _addPhoto() async {
-    final controller = TextEditingController();
     final url = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Thêm ảnh tác phẩm'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.url,
-          decoration: InputDecoration(
-            labelText: 'Đường dẫn ảnh HTTPS',
-            prefixIcon: const Icon(Icons.link_rounded),
-            filled: true,
-            fillColor: AppColors.mist,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(color: AppColors.fog),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Huỷ'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            icon: const Icon(Icons.add_rounded, size: 17),
-            label: const Text('Thêm ảnh'),
-          ),
-        ],
-      ),
+      builder: (_) => const _AddPortfolioPhotoDialog(),
     );
-    controller.dispose();
     if (url == null || !mounted) return;
     if (!Uri.tryParse(url).toString().startsWith('https://')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,24 +122,49 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     setState(() => photos.add(url));
   }
 
+  Future<void> _startAndAddPhoto(Photographer profile) async {
+    _start(profile);
+    await _addPhoto();
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(myPhotographerProvider);
     return Scaffold(
-      backgroundColor: AppColors.mist,
-      appBar: PhotographerAppBar(
+      backgroundColor: const Color(0xFFF9F9FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF9F9FA),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Hồ Sơ Năng Lực',
+          style: TextStyle(
+            color: Color(0xFF1A1C1D),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+          ),
+        ),
         actions: [
           if (profile != null && !editing) ...[
             IconButton(
               tooltip: 'Xem hồ sơ công khai',
               onPressed: () =>
                   context.push('/photographer_home/public_profile'),
-              icon: const Icon(Icons.visibility_outlined),
+              icon: const Icon(
+                Icons.visibility_outlined,
+                color: Color(0xFF5F5E60),
+                size: 22,
+              ),
             ),
             IconButton(
               tooltip: 'Chỉnh sửa hồ sơ',
               onPressed: () => _start(profile),
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: Color(0xFF5F5E60),
+                size: 22,
+              ),
             ),
           ],
         ],
@@ -221,6 +216,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   onPreview: () =>
                       context.push('/photographer_home/public_profile'),
                   onEdit: () => _start(profile),
+                  onAddPhoto: () => _startAndAddPhoto(profile),
                 ),
               ),
             ),
@@ -233,4 +229,51 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           : null,
     );
   }
+}
+
+class _AddPortfolioPhotoDialog extends StatefulWidget {
+  const _AddPortfolioPhotoDialog();
+
+  @override
+  State<_AddPortfolioPhotoDialog> createState() =>
+      _AddPortfolioPhotoDialogState();
+}
+
+class _AddPortfolioPhotoDialogState extends State<_AddPortfolioPhotoDialog> {
+  final controller = TextEditingController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Thêm ảnh tác phẩm'),
+    content: TextField(
+      controller: controller,
+      keyboardType: TextInputType.url,
+      decoration: InputDecoration(
+        labelText: 'Đường dẫn ảnh HTTPS',
+        prefixIcon: const Icon(Icons.link_rounded),
+        filled: true,
+        fillColor: AppColors.mist,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(13),
+          borderSide: const BorderSide(color: AppColors.fog),
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Huỷ'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, controller.text.trim()),
+        child: const Text('Thêm ảnh'),
+      ),
+    ],
+  );
 }

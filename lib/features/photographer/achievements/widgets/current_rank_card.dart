@@ -21,131 +21,222 @@ class CurrentRankCard extends StatelessWidget {
   final int sessionsToNextRank;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.obsidian,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1809090B),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -48,
-            top: -54,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.ember.withValues(alpha: 0.12),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppColors.ember,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(
-                      Icons.emoji_events_rounded,
-                      color: AppColors.snow,
-                      size: 25,
-                    ),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppColors.snow,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: AppColors.fog.withValues(alpha: 0.8)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0A09090B),
+          blurRadius: 18,
+          offset: Offset(0, 5),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          runSpacing: 12,
+          spacing: 12,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: const BoxDecoration(
+                    color: AppColors.emberSoft,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(width: 11),
-                  const Expanded(
-                    child: Text(
-                      'CẤP BẬC HIỆN TẠI',
-                      style: TextStyle(
-                        color: AppColors.pebble,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.1,
+                  child: const Icon(
+                    Icons.shield_rounded,
+                    color: AppColors.ember,
+                    size: 31,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'CẤP BẬC HIỆN TẠI',
+                        style: TextStyle(
+                          color: AppColors.ember,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        rank.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.obsidian,
+                          fontSize: 20,
+                          height: 1.2,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.emberSoft,
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.circle, size: 7, color: AppColors.ember),
+                  SizedBox(width: 6),
+                  Text(
+                    'Đang kích hoạt',
+                    style: TextStyle(
+                      color: AppColors.ember,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              Text(
-                rank.name,
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                nextRank == null
+                    ? 'Bạn đã đạt cấp bậc cao nhất'
+                    : 'Tiến độ thăng hạng ${nextRank!.name}',
                 style: const TextStyle(
-                  color: AppColors.snow,
-                  fontSize: 25,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
+                  color: AppColors.slate,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 5),
+            ),
+            if (nextRank != null)
               Text(
-                '$sessionsCompleted buổi chụp hoàn thành  ·  Hoa hồng cấp bậc ${rank.commissionPercent}%',
+                '$sessionsCompleted / ${nextRank!.minimumSessions} buổi',
                 style: const TextStyle(
-                  color: AppColors.pebble,
-                  fontSize: 10,
-                  height: 1.4,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 19),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                child: LinearProgressIndicator(
-                  minHeight: 8,
-                  value: progress.clamp(0.0, 1.0),
                   color: AppColors.ember,
-                  backgroundColor: AppColors.snow.withValues(alpha: 0.16),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      nextRank == null
-                          ? 'Đã đạt cấp bậc cao nhất'
-                          : 'Còn $sessionsToNextRank buổi để lên ${nextRank!.name}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.snow,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+          child: LinearProgressIndicator(
+            minHeight: 9,
+            value: progress.clamp(0.0, 1.0),
+            color: AppColors.ember,
+            backgroundColor: AppColors.fog,
+          ),
+        ),
+        const SizedBox(height: 13),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF7F3),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (nextRank == null)
+                const Text(
+                  'Bạn đang ở cấp bậc cao nhất của lộ trình.',
+                  style: TextStyle(
+                    color: AppColors.graphite,
+                    fontSize: 12,
+                    height: 1.35,
                   ),
-                  if (nextRank != null) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '$sessionsCompleted/${nextRank!.minimumSessions}',
-                      style: const TextStyle(
-                        color: AppColors.pebble,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                )
+              else ...[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.stars_rounded,
+                      color: AppColors.ember,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(
+                          style: const TextStyle(
+                            color: AppColors.graphite,
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Còn '),
+                            TextSpan(
+                              text: '$sessionsToNextRank buổi',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const TextSpan(text: ' để đạt '),
+                            TextSpan(
+                              text: nextRank!.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.snow,
+                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                    border: Border.all(color: AppColors.emberSoft),
+                  ),
+                  child: Text(
+                    'Phí ${rank.commissionPercent}% → ${nextRank!.commissionPercent}%',
+                    style: const TextStyle(
+                      color: AppColors.ember,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }

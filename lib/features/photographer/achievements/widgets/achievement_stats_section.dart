@@ -18,32 +18,126 @@ class AchievementStatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      _StatRow(label: 'Buổi chụp hoàn thành', value: '$completedSessions'),
-      _StatRow(label: 'Đánh giá 5 sao', value: '$fiveStarPct%'),
-      _StatRow(label: 'Khách hàng quay lại', value: '$returningClients'),
-      _StatRow(
-        label: 'Tỷ lệ huỷ lịch',
-        value: '$cancelRate%',
-        warning: cancelRate > 5,
-        last: true,
+      Row(
+        children: [
+          const Icon(Icons.verified_outlined, color: AppColors.slate, size: 21),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              'Thành tích nổi bật',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.obsidian,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Text(
+            'Tổng quan hoạt động',
+            style: TextStyle(color: AppColors.steel, fontSize: 10),
+          ),
+        ],
+      ),
+      const SizedBox(height: 11),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 9.0;
+          final cardWidth = (constraints.maxWidth - spacing * 2) / 3;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: cardWidth,
+                child: _MetricCard(
+                  value: '$completedSessions',
+                  label: 'Buổi chụp',
+                  detail: 'Hoàn thành',
+                ),
+              ),
+              const SizedBox(width: spacing),
+              SizedBox(
+                width: cardWidth,
+                child: _MetricCard(
+                  value: '$fiveStarPct%',
+                  label: 'Đánh giá 5 sao',
+                  detail: 'Tỷ lệ',
+                ),
+              ),
+              const SizedBox(width: spacing),
+              SizedBox(
+                width: cardWidth,
+                child: _MetricCard(
+                  value: '$returningClients',
+                  label: 'Khách quay lại',
+                  detail: 'Khách hàng',
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      const SizedBox(height: 9),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.snow,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: AppColors.fog.withValues(alpha: 0.8)),
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Tỷ lệ huỷ lịch',
+                style: TextStyle(color: AppColors.graphite, fontSize: 12),
+              ),
+            ),
+            Text(
+              '$cancelRate%',
+              style: TextStyle(
+                color: cancelRate > 5
+                    ? AppColors.destructive
+                    : AppColors.obsidian,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
       if (cancelRate > 5) ...[
-        const SizedBox(height: 12),
+        const SizedBox(height: 9),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF2E2),
-            borderRadius: BorderRadius.circular(13),
+            color: AppColors.warningSoft,
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: const Text(
-            'Tỷ lệ huỷ đang cao. Cần cải thiện để bảo vệ thứ hạng.',
-            style: TextStyle(
-              color: AppColors.warning,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.warning,
+                size: 18,
+              ),
+              SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Tỷ lệ huỷ đang cao. Cần cải thiện để bảo vệ thứ hạng.',
+                  style: TextStyle(
+                    color: AppColors.warning,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -51,41 +145,73 @@ class AchievementStatsSection extends StatelessWidget {
   );
 }
 
-class _StatRow extends StatelessWidget {
-  const _StatRow({
-    required this.label,
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
     required this.value,
-    this.warning = false,
-    this.last = false,
+    required this.label,
+    required this.detail,
   });
 
-  final String label;
   final String value;
-  final bool warning;
-  final bool last;
+  final String label;
+  final String detail;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14),
+    constraints: const BoxConstraints(minHeight: 106),
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 11),
     decoration: BoxDecoration(
-      border: last
-          ? null
-          : const Border(bottom: BorderSide(color: AppColors.fog)),
+      color: AppColors.snow,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.fog.withValues(alpha: 0.8)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0809090B),
+          blurRadius: 10,
+          offset: Offset(0, 3),
+        ),
+      ],
     ),
-    child: Row(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Expanded(
+        FittedBox(
+          fit: BoxFit.scaleDown,
           child: Text(
-            label,
-            style: const TextStyle(color: AppColors.graphite, fontSize: 13),
+            value,
+            maxLines: 1,
+            style: const TextStyle(
+              color: AppColors.obsidian,
+              fontSize: 22,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
           ),
         ),
+        const SizedBox(height: 4),
         Text(
-          value,
-          style: TextStyle(
-            color: warning ? AppColors.destructive : AppColors.obsidian,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.slate,
+            fontSize: 10,
+            height: 1.25,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          detail,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.ember,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],

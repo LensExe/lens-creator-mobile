@@ -66,6 +66,7 @@ class PortfolioEditorForm extends StatelessWidget {
             children: [
               DropdownButtonFormField<String>(
                 initialValue: cities.contains(city) ? city : null,
+                isExpanded: true,
                 decoration: _inputDecoration(
                   'Tỉnh / Thành phố',
                   Icons.location_on_outlined,

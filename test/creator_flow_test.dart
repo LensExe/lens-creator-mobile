@@ -515,7 +515,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Xem hồ sơ công khai'));
     await tester.pumpAndSettle();
-    expect(find.text('Xem hồ sơ công khai'), findsWidgets);
+    expect(find.text('Hồ sơ nhiếp ảnh'), findsOneWidget);
     expect(find.text('Giới thiệu'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
