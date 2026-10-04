@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -95,6 +96,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     });
   }
 
+  List<Object> _timelineItems(List<StudioMessage> messages) {
+    final items = <Object>[];
+    DateTime? previousDate;
+    for (final message in messages) {
+      final date = message.sentAt;
+      if (previousDate == null || !DateUtils.isSameDay(previousDate, date)) {
+        items.add(date);
+        previousDate = date;
+      }
+      items.add(message);
+    }
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(conversationsProvider, (previous, next) {
@@ -135,15 +150,24 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         .watch(myBookingsProvider)
         .where((booking) => booking.clientId == current.participantId)
         .toList();
+    final roleLabel = current.participantIsPhotographer
+        ? 'Nhiếp ảnh gia'
+        : 'Khách hàng';
+    final headerSubtitle = bookings.isEmpty
+        ? roleLabel
+        : '$roleLabel · ${bookings.first.packageName ?? bookings.first.style}';
+    final timeline = _timelineItems(current.messages);
 
     return Scaffold(
-      backgroundColor: AppColors.mist,
+      backgroundColor: const Color(0xFFF9F9FA),
       appBar: AppBar(
+        toolbarHeight: 64,
         titleSpacing: 0,
+        backgroundColor: const Color(0xFFF9F9FA),
         title: Row(
           children: [
-            ConversationAvatar(name: current.participantName, size: 37),
-            const SizedBox(width: 10),
+            ConversationAvatar(name: current.participantName, size: 36),
+            const SizedBox(width: 9),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,20 +178,20 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.obsidian,
+                      color: AppColors.ink,
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    current.participantIsPhotographer
-                        ? 'Nhiếp ảnh gia'
-                        : 'Khách hàng',
+                    headerSubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.steel,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
@@ -191,7 +215,13 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
       ),
       body: Column(
         children: [
-          if (bookings.isNotEmpty) _BookingContext(booking: bookings.first),
+          if (bookings.isNotEmpty)
+            _BookingContext(
+              booking: bookings.first,
+              onDetails: () => context.push(
+                '/photographer_home/booking/${bookings.first.id}',
+              ),
+            ),
           if (!current.participantIsPhotographer)
             ConversationAiControl(
               isEnabled: assistantActive,
@@ -208,13 +238,16 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                   )
                 : ListView.builder(
                     controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(15, 16, 15, 12),
-                    itemCount: current.messages.length,
+                    padding: const EdgeInsets.fromLTRB(15, 15, 15, 12),
+                    itemCount: timeline.length,
                     itemBuilder: (context, index) {
-                      final message = current.messages[index];
+                      final item = timeline[index];
+                      if (item is DateTime) return _ChatDateStamp(date: item);
+                      final message = item as StudioMessage;
                       return ChatMessageBubble(
                         message: message,
                         isMine: message.senderId == user?.id,
+                        senderName: current.participantName,
                       );
                     },
                   ),
@@ -227,9 +260,10 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 }
 
 class _BookingContext extends StatelessWidget {
-  const _BookingContext({required this.booking});
+  const _BookingContext({required this.booking, required this.onDetails});
 
   final Booking booking;
+  final VoidCallback onDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -237,46 +271,114 @@ class _BookingContext extends StatelessWidget {
     final dateLabel = date == null
         ? booking.date
         : DateFormat('dd/MM/yyyy').format(date);
+    final timeSlot = booking.timeSlot?.trim();
     return Container(
-      color: AppColors.emberSoft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        child: Row(
-          children: [
-            const Icon(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 3),
+      padding: const EdgeInsets.fromLTRB(11, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: AppColors.snow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E8E9)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 9,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F3F4),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
               Icons.photo_camera_outlined,
               color: AppColors.ember,
-              size: 18,
+              size: 19,
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${booking.style}${booking.packageName == null ? '' : ' · ${booking.packageName}'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${booking.style}${booking.packageName == null ? '' : ' · ${booking.packageName}'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${BookingRules.statusLabel(booking.status)} · $dateLabel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.graphite,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${BookingRules.statusLabel(booking.status)} · $dateLabel${timeSlot?.isNotEmpty == true ? ' · $timeSlot' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AppColors.steel, fontSize: 10),
+                ),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(width: 3),
+          TextButton.icon(
+            onPressed: onDetails,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.ember,
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
+              minimumSize: const Size(0, 36),
+              visualDensity: VisualDensity.compact,
+            ),
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.chevron_right_rounded, size: 17),
+            label: const Text(
+              'Chi tiết',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatDateStamp extends StatelessWidget {
+  const _ChatDateStamp({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final label = DateUtils.isSameDay(date, now)
+        ? 'Hôm nay, ${DateFormat('dd/MM/yyyy').format(date)}'
+        : DateUtils.isSameDay(date, now.subtract(const Duration(days: 1)))
+        ? 'Hôm qua, ${DateFormat('dd/MM/yyyy').format(date)}'
+        : DateFormat('dd/MM/yyyy').format(date);
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 15),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEEEEEF),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.steel,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );

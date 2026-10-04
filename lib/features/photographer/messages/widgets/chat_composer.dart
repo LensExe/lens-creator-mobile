@@ -20,7 +20,7 @@ class ChatComposer extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
     decoration: BoxDecoration(
       color: AppColors.snow,
-      border: Border(top: BorderSide(color: AppColors.fog)),
+      border: const Border(top: BorderSide(color: Color(0xFFE8E8E9))),
       boxShadow: const [
         BoxShadow(
           color: Color(0x08000000),
@@ -42,9 +42,9 @@ class ChatComposer extends StatelessWidget {
               minLines: 1,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Nhập tin nhắn...',
+                hintText: 'Nhập tin nhắn tư vấn...',
                 filled: true,
-                fillColor: AppColors.mist,
+                fillColor: AppColors.snow,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 15,
                   vertical: 11,
@@ -84,7 +84,7 @@ class ChatComposer extends StatelessWidget {
                         color: AppColors.snow,
                       ),
                     )
-                  : const Icon(Icons.send_rounded, size: 19),
+                  : const Icon(Icons.arrow_upward_rounded, size: 20),
               tooltip: 'Gửi tin nhắn',
             ),
           ),

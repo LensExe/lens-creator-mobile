@@ -17,26 +17,33 @@ class ConversationAiControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+    margin: const EdgeInsets.fromLTRB(12, 5, 12, 4),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
       color: AppColors.snow,
-      borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-      border: Border.all(color: AppColors.fog),
+      borderRadius: BorderRadius.circular(17),
+      border: Border.all(color: const Color(0xFFE8E8E9)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x06000000),
+          blurRadius: 9,
+          offset: Offset(0, 2),
+        ),
+      ],
     ),
     child: Row(
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 37,
+          height: 37,
           decoration: BoxDecoration(
-            color: isEnabled ? const Color(0xFFFFF0E8) : AppColors.mist,
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFE8E8E9),
+            borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(
-            Icons.auto_awesome_rounded,
-            color: isEnabled ? AppColors.ember : AppColors.steel,
-            size: 19,
+          child: const Icon(
+            Icons.smart_toy_rounded,
+            color: AppColors.ember,
+            size: 20,
           ),
         ),
         const SizedBox(width: 10),
@@ -44,37 +51,35 @@ class ConversationAiControl extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 3,
                 children: [
                   const Text(
-                    'Trợ lý AI',
+                    'Trợ lý AI tự động phản hồi',
                     style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 7),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: isEnabled
-                          ? const Color(0xFFE8F6EF)
-                          : AppColors.mist,
+                      color: const Color(0x1AFF5A00),
                       borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                     ),
-                    child: Text(
-                      isEnabled ? 'ĐANG BẬT' : 'ĐANG TẮT',
+                    child: const Text(
+                      'LENS AI',
                       style: TextStyle(
-                        color: isEnabled
-                            ? const Color(0xFF16865A)
-                            : AppColors.steel,
+                        color: AppColors.ember,
                         fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
                       ),
                     ),
                   ),
@@ -91,14 +96,14 @@ class ConversationAiControl extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.steel,
-                  fontSize: 9,
-                  height: 1.35,
+                  fontSize: 10,
+                  height: 1.3,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Switch.adaptive(
           value: isEnabled,
           onChanged: canToggle ? onChanged : null,
