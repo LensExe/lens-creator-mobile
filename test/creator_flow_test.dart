@@ -608,7 +608,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
-      expect(find.text('Thư viện đã giao'), findsOneWidget);
+      expect(find.text('Bộ sưu tập đã giao'), findsOneWidget);
       expect(
         tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
         4,

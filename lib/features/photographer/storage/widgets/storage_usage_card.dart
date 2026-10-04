@@ -11,16 +11,18 @@ class StorageUsageCard extends StatelessWidget {
     required this.usedBytes,
     required this.capacityBytes,
     required this.galleryCount,
+    required this.onViewPlans,
   });
 
   final StoragePlan plan;
   final int usedBytes;
   final int capacityBytes;
   final int galleryCount;
+  final VoidCallback onViewPlans;
 
   @override
   Widget build(BuildContext context) {
-    final ratio = capacityBytes == 0 ? 0.0 : usedBytes / capacityBytes;
+    final ratio = capacityBytes <= 0 ? 0.0 : usedBytes / capacityBytes;
     final percentage = (ratio * 100).round();
     final overLimit = ratio > 1;
     final nearLimit = ratio >= 0.8;
@@ -34,6 +36,11 @@ class StorageUsageCard extends StatelessWidget {
         : nearLimit
         ? const Color(0xFFFFF5E7)
         : const Color(0xFFE8F6EF);
+    final statusLabel = overLimit
+        ? '+${((ratio - 1) * 100).round()}% vượt hạn mức'
+        : nearLimit
+        ? 'Sắp đầy'
+        : 'Đang sử dụng';
     final retention = plan.retentionDays == null
         ? 'Lưu dài hạn khi duy trì gói'
         : 'Lưu ${plan.retentionDays} ngày';
@@ -42,8 +49,14 @@ class StorageUsageCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.snow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        border: Border.all(color: AppColors.fog),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,120 +64,249 @@ class StorageUsageCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0E8),
-                  borderRadius: BorderRadius.circular(11),
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFE7DE),
+                  shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.cloud_outlined,
-                  color: AppColors.ember,
-                  size: 19,
+                  Icons.cloud_off_outlined,
+                  color: AppColors.destructive,
+                  size: 18,
                 ),
               ),
               const SizedBox(width: 9),
-              Expanded(
+              const Expanded(
                 child: Text(
-                  'Gói hiện tại · ${plan.name}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.obsidian,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                  'Dung lượng lưu trữ',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
-                  color: statusBackground,
+                  color: const Color(0xFFEEEEEF),
                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 ),
                 child: Text(
-                  overLimit
-                      ? 'Vượt hạn mức'
-                      : nearLimit
-                      ? 'Sắp đầy'
-                      : 'Đang sử dụng',
+                  'Gói ${plan.name}',
+                  style: const TextStyle(
+                    color: AppColors.graphite,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Text(
+                formatStorageBytes(usedBytes),
+                style: TextStyle(
+                  color: overLimit ? AppColors.destructive : AppColors.ink,
+                  fontSize: 29,
+                  height: 1,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              Text(
+                '/ ${formatStorageBytes(capacityBytes)}',
+                style: const TextStyle(
+                  color: AppColors.steel,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: overLimit ? statusColor : statusBackground,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                ),
+                child: Text(
+                  statusLabel,
                   style: TextStyle(
-                    color: statusColor,
-                    fontSize: 9,
+                    color: overLimit ? AppColors.snow : statusColor,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 15),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        formatStorageBytes(usedBytes),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.obsidian,
-                          fontSize: 25,
-                          height: 1,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.7,
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final safeRatio = ratio.clamp(0.0, 1.0);
+              if (!overLimit) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                  child: SizedBox(
+                    height: 10,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        const ColoredBox(color: Color(0xFFE8E8E9)),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: safeRatio,
+                            child: const ColoredBox(color: AppColors.ember),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final overFraction = (ratio - 1) / ratio;
+              final overFlex = (overFraction * 1000).round().clamp(1, 999);
+              final baseFlex = 1000 - overFlex;
+              final markerPosition = baseFlex / 1000;
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                child: SizedBox(
+                  height: 10,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: baseFlex,
+                            child: const ColoredBox(color: AppColors.ember),
+                          ),
+                          Expanded(
+                            flex: overFlex,
+                            child: const ColoredBox(
+                              color: AppColors.destructive,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment(markerPosition * 2 - 1, 0),
+                        child: Container(
+                          width: 2,
+                          height: 10,
+                          color: AppColors.ink.withValues(alpha: 0.55),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '/ ${formatStorageBytes(capacityBytes)}',
-                      style: const TextStyle(
-                        color: AppColors.ash,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 8,
+            runSpacing: 2,
+            children: [
+              Text(
+                'Đã dùng $percentage%',
+                style: const TextStyle(
+                  color: AppColors.steel,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 8),
               Text(
-                '$percentage% đã dùng',
-                style: TextStyle(
-                  color: statusColor,
+                'Giới hạn: ${formatStorageBytes(capacityBytes)}',
+                style: const TextStyle(
+                  color: AppColors.steel,
                   fontSize: 10,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-            child: LinearProgressIndicator(
-              minHeight: 8,
-              value: ratio.clamp(0.0, 1.0),
-              color: statusColor,
-              backgroundColor: AppColors.mist,
+          if (overLimit) ...[
+            const SizedBox(height: 11),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFECEA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.destructive,
+                    size: 18,
+                  ),
+                  SizedBox(width: 7),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Đã vượt dung lượng lưu trữ',
+                          style: TextStyle(
+                            color: AppColors.destructive,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Khách hàng có thể gặp gián đoạn khi xem hoặc tải ảnh độ phân giải cao.',
+                          style: TextStyle(
+                            color: Color(0xFF7F1D1D),
+                            fontSize: 11,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: onViewPlans,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.ember,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                visualDensity: VisualDensity.compact,
+              ),
+              iconAlignment: IconAlignment.end,
+              icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+              label: const Text(
+                'Xem các gói mở rộng dung lượng',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: AppColors.fog),
-          ),
+          const Divider(height: 10, color: AppColors.fog),
           Wrap(
-            spacing: 8,
+            spacing: 12,
             runSpacing: 7,
             children: [
               _UsageDetail(
                 icon: Icons.photo_library_outlined,
-                label: '$galleryCount buổi đã giao ảnh',
+                label: '$galleryCount bộ ảnh',
               ),
               _UsageDetail(
                 icon: Icons.data_usage_outlined,

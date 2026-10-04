@@ -52,110 +52,169 @@ class StorageGalleryCard extends StatelessWidget {
     final status = _status;
     final booking = gallery.booking;
     final deliveredDate = DateFormat('dd/MM/yyyy').format(gallery.deliveredAt);
-    return Material(
-      color: AppColors.snow,
-      child: InkWell(
-        onTap: () =>
-            context.push('/photographer_home/booking/${booking.id}/gallery'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 43,
-                height: 43,
-                decoration: BoxDecoration(
-                  color: gallery.locked
-                      ? AppColors.mist
-                      : const Color(0xFFFFF0E8),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: gallery.locked
-                        ? AppColors.fog
-                        : const Color(0xFFFFE0CF),
+    final thumbnailUrl = booking.deliveredPhotoUrls.isEmpty
+        ? null
+        : booking.deliveredPhotoUrls.first;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      decoration: BoxDecoration(
+        color: AppColors.snow,
+        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x07000000),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+          onTap: () =>
+              context.push('/photographer_home/booking/${booking.id}/gallery'),
+          child: Padding(
+            padding: const EdgeInsets.all(11),
+            child: Row(
+              children: [
+                _GalleryThumbnail(url: thumbnailUrl, locked: gallery.locked),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${booking.style} · ${booking.clientName}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.ink,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: status.background,
+                              borderRadius: BorderRadius.circular(
+                                AppTokens.radiusPill,
+                              ),
+                            ),
+                            child: Text(
+                              status.label,
+                              style: TextStyle(
+                                color: status.foreground,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '${booking.deliveredPhotos} ảnh · ${formatStorageBytes(gallery.sizeBytes)}',
+                        style: const TextStyle(
+                          color: AppColors.graphite,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Giao $deliveredDate · $_retentionLabel',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.steel,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Icon(
-                  gallery.locked
-                      ? Icons.lock_outline_rounded
-                      : Icons.photo_library_outlined,
-                  color: gallery.locked ? AppColors.graphite : AppColors.ember,
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.chevron_right_rounded,
                   size: 20,
+                  color: AppColors.ash,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GalleryThumbnail extends StatelessWidget {
+  const _GalleryThumbnail({required this.url, required this.locked});
+
+  final String? url;
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = url == null
+        ? const ColoredBox(
+            color: Color(0xFFFFF0E8),
+            child: Center(
+              child: Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.ember,
+                size: 23,
+              ),
+            ),
+          )
+        : Image.network(
+            url!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const ColoredBox(
+              color: Color(0xFFFFF0E8),
+              child: Center(
+                child: Icon(
+                  Icons.photo_outlined,
+                  color: AppColors.ember,
+                  size: 23,
                 ),
               ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${booking.style} · ${booking.clientName}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.obsidian,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: status.background,
-                            borderRadius: BorderRadius.circular(
-                              AppTokens.radiusPill,
-                            ),
-                          ),
-                          child: Text(
-                            status.label,
-                            style: TextStyle(
-                              color: status.foreground,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${booking.deliveredPhotos} ảnh · ${formatStorageBytes(gallery.sizeBytes)}',
-                      style: const TextStyle(
-                        color: AppColors.steel,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Giao $deliveredDate · $_retentionLabel',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.ash,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+            ),
+          );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 72,
+        height: 72,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            image,
+            if (locked) ...[
+              const ColoredBox(color: Color(0x880F1012)),
+              const Center(
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: Colors.white,
+                  size: 21,
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.ash,
               ),
             ],
-          ),
+          ],
         ),
       ),
     );

@@ -9,6 +9,7 @@ import 'package:lens_creator_mobile/features/photographer/booking_request_detail
 import 'package:lens_creator_mobile/features/photographer/packages/packages_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/photographer_bookings_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/photographer_home_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/storage/storage_screen.dart';
 import 'package:lens_creator_mobile/providers/data_providers.dart';
 
 void main() {
@@ -21,11 +22,14 @@ void main() {
     final bookings = MockDatabase.bookings
         .where((booking) => booking.photographerId == 'me')
         .toList();
+    final previousUser = MockDatabase.currentUser;
+    MockDatabase.currentUser = MockDatabase.photographerUser;
     final pending = bookings.firstWhere(
       (booking) => booking.status == BookingStatus.pending,
     );
 
     addTearDown(() {
+      MockDatabase.currentUser = previousUser;
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
@@ -40,6 +44,7 @@ void main() {
         ('booking detail', BookingRequestDetailScreen(bookingId: pending.id)),
         ('availability', const AvailabilityScreen()),
         ('packages', const PackagesScreen()),
+        ('storage', const StorageScreen()),
       ]) {
         await tester.pumpWidget(
           ProviderScope(
