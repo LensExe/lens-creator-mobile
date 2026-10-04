@@ -10,15 +10,6 @@ class AvailabilityBookingCard extends StatelessWidget {
 
   final Booking booking;
 
-  String get _initials {
-    final name = booking.clientName.trim();
-    if (name.isEmpty) return '?';
-    final words = name.split(RegExp(r'\s+'));
-    if (words.length == 1) return words.first.characters.first.toUpperCase();
-    return '${words.first.characters.first}${words.last.characters.first}'
-        .toUpperCase();
-  }
-
   String get _timeRange {
     final start = booking.timeSlot;
     if (start == null) return 'Chưa có giờ';
@@ -32,151 +23,131 @@ class AvailabilityBookingCard extends StatelessWidget {
     final endMinutes = (startMinutes + duration).clamp(0, 24 * 60);
     final end =
         '${(endMinutes ~/ 60).toString().padLeft(2, '0')}:${(endMinutes % 60).toString().padLeft(2, '0')}';
-    return '$start – $end';
+    return '$start - $end';
+  }
+
+  int get _slotCount => ((booking.durationHours ?? 2) * 2).ceil();
+
+  String get _statusLabel {
+    switch (booking.status) {
+      case BookingStatus.awaitingDeposit:
+        return 'Chờ đặt cọc';
+      case BookingStatus.pending:
+        return 'Chờ xác nhận';
+      case BookingStatus.confirmed:
+        return 'Đã xác nhận';
+      case BookingStatus.held:
+        return 'Đã chốt Escrow';
+      case BookingStatus.released:
+        return 'Đã hoàn tất';
+      case BookingStatus.cancelled:
+        return 'Đã huỷ';
+    }
   }
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.snow,
-    borderRadius: BorderRadius.circular(15),
-    child: InkWell(
-      onTap: () => context.push('/photographer_home/booking/${booking.id}'),
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFFFFE0CF)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.ember,
-                  child: Text(
-                    _initials,
-                    style: const TextStyle(
-                      color: AppColors.snow,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF8FAFC),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => context.push('/photographer_home/booking/${booking.id}'),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEDD5),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        booking.clientName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.obsidian,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        booking.style,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.steel,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: const BoxDecoration(
-                    color: AppColors.mist,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.lock_outline_rounded,
-                    color: AppColors.graphite,
-                    size: 14,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(
-                  Icons.schedule_rounded,
-                  size: 14,
+                child: const Icon(
+                  Icons.verified_user_rounded,
                   color: AppColors.ember,
+                  size: 18,
                 ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    _timeRange,
-                    style: const TextStyle(
-                      color: AppColors.graphite,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$_timeRange · ${booking.clientName}',
+                            style: const TextStyle(
+                              color: Color(0xFF1E293B),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD1FAE5),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _statusLabel,
+                            style: const TextStyle(
+                              color: Color(0xFF065F46),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-                Text(
-                  formatDong(booking.price),
-                  style: const TextStyle(
-                    color: AppColors.obsidian,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Divider(height: 1, color: AppColors.fog),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_outline_rounded,
-                  size: 14,
-                  color: AppColors.success,
-                ),
-                const SizedBox(width: 5),
-                const Expanded(
-                  child: Text(
-                    'Đã khóa lịch nhận khách',
-                    style: TextStyle(
-                      color: AppColors.success,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${booking.style} · $_slotCount khung tự động khóa',
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          formatDong(booking.price),
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
-                const Text(
-                  'Chi tiết',
-                  style: TextStyle(
-                    color: AppColors.ember,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: AppColors.ember,
-                  size: 13,
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

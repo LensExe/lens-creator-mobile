@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/creator_page_header.dart';
-import '../../../core/widgets/creator_section_header.dart';
 import '../../../providers/data_providers.dart';
 import '../widgets/photographer_app_bar.dart';
 import 'schedule_provider.dart';
@@ -162,8 +159,20 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       );
     }).length;
 
+    const weekdays = [
+      'Thứ hai',
+      'Thứ ba',
+      'Thứ tư',
+      'Thứ năm',
+      'Thứ sáu',
+      'Thứ bảy',
+      'Chủ nhật',
+    ];
+    final formattedSelectedDay =
+        '${weekdays[selected.weekday - 1]}, ${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}';
+
     return Scaffold(
-      backgroundColor: AppColors.mist,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: PhotographerAppBar(
         actions: [
           IconButton(
@@ -174,10 +183,17 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
         ],
       ),
       bottomNavigationBar: dirty
-          ? AvailabilitySaveBar(
-              onDiscard: saving ? null : _discardDraft,
-              onSave: saving ? null : _saveDraft,
-              saving: saving,
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: AvailabilitySaveBar(
+                  changeSummary: 'Đã chỉnh sửa $formattedSelectedDay',
+                  onDiscard: saving ? null : _discardDraft,
+                  onSave: saving ? null : _saveDraft,
+                  saving: saving,
+                ),
+              ),
             )
           : null,
       body: Center(
@@ -186,55 +202,110 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
             maxWidth: AppTokens.contentMaxWidth,
           ),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 17, 16, 26),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: [
-              const CreatorPageHeader(
-                title: 'Lịch làm việc',
-                subtitle: 'Sắp xếp thời gian nhận lịch và những lúc bạn bận.',
+              // 1. Page Title & Scope Section
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Lịch làm việc',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Quản lý thời gian bạn có thể nhận booking',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: openDays > 0
+                          ? const Color(0xFFECFDF5)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: openDays > 0
+                            ? const Color(0xFFA7F3D0).withValues(alpha: 0.6)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: openDays > 0
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF94A3B8),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          openDays > 0 ? 'Đang nhận lịch' : 'Tạm dừng nhận',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: openDays > 0
+                                ? const Color(0xFF047857)
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              CreatorSectionHeader(
-                title: 'Lịch tháng',
-                subtitle: 'Chấm xanh lá đánh dấu ngày có lịch chụp.',
+
+              const SizedBox(height: 14),
+
+              // 2. Compact Single-row Availability Summary Strip
+              AvailabilityOverview(
+                weeklyHours: _hoursLabel(weeklySlots),
+                upcomingBookings: upcomingBookings,
+                busySlots: busySlotCount,
+                openDays: openDays,
               ),
-              const SizedBox(height: 10),
+
+              const SizedBox(height: 16),
+
+              // 3. Monthly Calendar (Hero Interaction)
               CalendarView(
                 selectedDay: selected,
                 firstDay: firstSelectable,
                 lastDay: lastSelectable,
                 bookedDays: bookedDays,
+                schedule: schedule,
                 onDaySelected: (day) => setState(() => selected = day),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 21),
-                child: Divider(height: 1),
-              ),
-              WeeklyScheduleCard(
-                schedule: schedule,
-                selectedWeekday: selectedWeekday,
-                onWeekdaySelected: (weekday) =>
-                    setState(() => selectedWeekday = weekday),
-                onPresetSelected: (days) => _edit((next) {
-                  for (var day = 0; day < 7; day++) {
-                    next.weekly[day] = days.contains(day)
-                        ? {...WorkSchedule.slots}
-                        : <String>{};
-                  }
-                }),
-                onDayAvailabilityChanged: (weekday, enabled) => _edit(
-                  (next) => next.weekly[weekday] = enabled
-                      ? {...WorkSchedule.slots}
-                      : <String>{},
-                ),
-                onSlotToggle: (weekday, slot) => _edit((next) {
-                  final cells = next.weekly[weekday];
-                  if (!cells.add(slot)) cells.remove(slot);
-                }),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 22),
-                child: Divider(height: 1),
-              ),
+
+              const SizedBox(height: 16),
+
+              // 4. Selected Day & Daily Availability Matrix
               DayScheduleCard(
                 date: selected,
                 bookings: bookingsOnDay,
@@ -259,42 +330,36 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                   if (cells.isEmpty) next.busy.remove(key);
                 }),
               ),
-              const SizedBox(height: 27),
-              AvailabilityOverview(
-                weeklyHours: _hoursLabel(weeklySlots),
-                upcomingBookings: upcomingBookings,
-                busySlots: busySlotCount,
-                openDays: openDays,
+
+              const SizedBox(height: 16),
+
+              // 5. Weekly Recurring Schedule
+              WeeklyScheduleCard(
+                schedule: schedule,
+                selectedWeekday: selectedWeekday,
+                onWeekdaySelected: (weekday) =>
+                    setState(() => selectedWeekday = weekday),
+                onPresetSelected: (days) => _edit((next) {
+                  for (var day = 0; day < 7; day++) {
+                    next.weekly[day] = days.contains(day)
+                        ? {...WorkSchedule.slots}
+                        : <String>{};
+                  }
+                }),
+                onDayAvailabilityChanged: (weekday, enabled) => _edit(
+                  (next) => next.weekly[weekday] = enabled
+                      ? {...WorkSchedule.slots}
+                      : <String>{},
+                ),
+                onSlotToggle: (weekday, slot) => _edit((next) {
+                  final cells = next.weekly[weekday];
+                  if (!cells.add(slot)) cells.remove(slot);
+                }),
               ),
-              if (dirty) ...[
-                const SizedBox(height: 12),
-                const _UnsavedNotice(),
-              ],
             ],
           ),
         ),
       ),
     );
   }
-}
-
-class _UnsavedNotice extends StatelessWidget {
-  const _UnsavedNotice();
-
-  @override
-  Widget build(BuildContext context) => const Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Icon(Icons.edit_note_rounded, size: 15, color: AppColors.ember),
-      SizedBox(width: 5),
-      Text(
-        'Bạn có thay đổi chưa lưu',
-        style: TextStyle(
-          color: AppColors.steel,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ],
-  );
 }

@@ -13,46 +13,36 @@ class PackageCardItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hours =
-        package.durationHours == package.durationHours.truncateToDouble()
-        ? package.durationHours.toStringAsFixed(0)
-        : package.durationHours.toString();
+    final hours = package.durationHours.toStringAsFixed(1);
+    final editRoute = '/photographer_home/packages/edit/${package.id}';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppColors.snow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        border: Border.all(color: AppColors.fog),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF0F0F2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap: () =>
-              context.push('/photographer_home/packages/edit/${package.id}'),
-          borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+          onTap: () => context.push(editRoute),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.emberSoft,
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: const Icon(
-                        Icons.photo_camera_outlined,
-                        color: AppColors.ember,
-                        size: 19,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,81 +52,74 @@ class PackageCardItem extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: AppColors.obsidian,
+                              color: AppColors.ink,
                               fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              height: 1.25,
-                              letterSpacing: -0.25,
+                              height: 1.3,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.15,
                             ),
                           ),
-                          if (package.description.trim().isNotEmpty) ...[
-                            const SizedBox(height: 5),
-                            Text(
-                              package.description,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: AppColors.steel,
-                                fontSize: 12,
-                                height: 1.45,
-                              ),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatDong(package.price),
+                            style: const TextStyle(
+                              color: AppColors.ember,
+                              fontSize: 20,
+                              height: 1.25,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
-                      Icons.edit_outlined,
-                      size: 17,
-                      color: AppColors.ash,
+                    SizedBox(
+                      width: 38,
+                      height: 38,
+                      child: IconButton(
+                        tooltip: 'Chỉnh sửa ${package.name}',
+                        onPressed: () => context.push(editRoute),
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          foregroundColor: AppColors.graphite,
+                          backgroundColor: const Color(0xFFEEEEEF),
+                          shape: const CircleBorder(),
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                      ),
                     ),
                   ],
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Divider(height: 1),
-                ),
-                Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: [
-                    _PackageFact(
-                      icon: Icons.timelapse_outlined,
-                      label: '$hours giờ',
+                if (package.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    package.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.steel,
+                      fontSize: 13,
+                      height: 1.45,
                     ),
+                  ),
+                ],
+                const SizedBox(height: 15),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
                     _PackageFact(
                       icon: Icons.photo_library_outlined,
                       label: '${package.photoCount} ảnh',
                     ),
                     _PackageFact(
+                      icon: Icons.schedule_outlined,
+                      label: '$hours giờ',
+                    ),
+                    _PackageFact(
                       icon: Icons.local_shipping_outlined,
-                      label: '${package.deliveryDays} ngày',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'GIÁ GÓI',
-                        style: TextStyle(
-                          color: AppColors.steel,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      formatDong(package.price),
-                      style: const TextStyle(
-                        color: AppColors.obsidian,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
+                      label: 'Giao trong ${package.deliveryDays} ngày',
                     ),
                   ],
                 ),
@@ -157,16 +140,16 @@ class _PackageFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
     decoration: BoxDecoration(
-      color: AppColors.mist,
+      color: const Color(0xFFEEEEEF),
       borderRadius: BorderRadius.circular(AppTokens.radiusPill),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.graphite),
-        const SizedBox(width: 5),
+        Icon(icon, size: 15, color: AppColors.steel),
+        const SizedBox(width: 6),
         Text(
           label,
           style: const TextStyle(
