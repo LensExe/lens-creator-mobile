@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
-
 class SettingsActionTile extends StatelessWidget {
   const SettingsActionTile({
     super.key,
@@ -23,45 +20,56 @@ class SettingsActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppColors.destructive : AppColors.graphite;
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    final titleColor = destructive
+        ? const Color(0xFFD32F2F)
+        : const Color(0xFF1A1C1D);
+    final subtitleColor = destructive
+        ? const Color(0xFFD32F2F).withValues(alpha: 0.8)
+        : const Color(0xFF636466);
+    final iconBoxBg = destructive
+        ? const Color(0xFFFDE8E8)
+        : const Color(0xFFF4F4F5);
+    final iconColor = destructive
+        ? const Color(0xFFD32F2F)
+        : const Color(0xFF1A1C1D);
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: destructive
-                  ? AppColors.destructive.withValues(alpha: 0.08)
-                  : AppColors.mist,
-              borderRadius: BorderRadius.circular(AppTokens.radiusInput),
+              color: iconBoxBg,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 19, color: color),
+            child: Icon(icon, size: 18, color: iconColor),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
                   style: TextStyle(
-                    color: destructive ? AppColors.destructive : AppColors.ink,
+                    color: titleColor,
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: destructive ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.steel,
+                    style: TextStyle(
+                      color: subtitleColor,
                       fontSize: 12,
-                      height: 1.4,
+                      height: 1.35,
                     ),
                   ),
                 ],
@@ -72,18 +80,33 @@ class SettingsActionTile extends StatelessWidget {
           trailing ??
               (onTap == null
                   ? const SizedBox.shrink()
-                  : const Icon(
+                  : Icon(
                       Icons.chevron_right_rounded,
-                      size: 20,
-                      color: AppColors.ash,
+                      size: 18,
+                      color: destructive
+                          ? const Color(0xFFD32F2F).withValues(alpha: 0.7)
+                          : const Color(0xFF636466),
                     )),
         ],
       ),
     );
 
+    if (onTap == null) {
+      return Container(color: Colors.white, child: content);
+    }
+
     return Material(
-      color: AppColors.snow,
-      child: onTap == null ? row : InkWell(onTap: onTap, child: row),
+      color: Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: destructive
+            ? const Color(0xFFFDE8E8)
+            : const Color(0xFFF4F4F5),
+        highlightColor: destructive
+            ? const Color(0xFFFDE8E8).withValues(alpha: 0.5)
+            : const Color(0xFFF4F4F5).withValues(alpha: 0.5),
+        child: content,
+      ),
     );
   }
 }

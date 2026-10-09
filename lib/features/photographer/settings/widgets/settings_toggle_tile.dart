@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
 
 class SettingsToggleTile extends StatelessWidget {
   const SettingsToggleTile({
@@ -23,48 +22,45 @@ class SettingsToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     child: Row(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
-            color: value ? AppColors.emberSoft : AppColors.mist,
-            borderRadius: BorderRadius.circular(AppTokens.radiusInput),
+            color: const Color(0xFFF4F4F5),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            size: 19,
-            color: value ? AppColors.ember : AppColors.graphite,
-          ),
+          child: Icon(icon, size: 18, color: const Color(0xFF1A1C1D)),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 title,
                 style: const TextStyle(
-                  color: AppColors.ink,
+                  color: Color(0xFF1A1C1D),
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: const TextStyle(
-                  color: AppColors.steel,
+                  color: Color(0xFF636466),
                   fontSize: 12,
-                  height: 1.4,
+                  height: 1.35,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 8),
         if (busy)
           const SizedBox.square(
             dimension: 20,
@@ -74,7 +70,15 @@ class SettingsToggleTile extends StatelessWidget {
             ),
           )
         else
-          Switch.adaptive(value: value, onChanged: onChanged),
+          Transform.scale(
+            scale: 0.85,
+            child: Switch.adaptive(
+              value: value,
+              activeTrackColor: AppColors.ember,
+              activeThumbColor: Colors.white,
+              onChanged: onChanged,
+            ),
+          ),
       ],
     ),
   );

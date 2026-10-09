@@ -76,42 +76,91 @@ class _CollaborationInvitesState extends ConsumerState<CollaborationInvites> {
           if (!widget.compact) ...[
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.handshake_outlined,
-                  size: 19,
-                  color: AppColors.ember,
+                  size: widget.subdued ? 17 : 19,
+                  color: const Color(0xFFA83900),
                 ),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(
-                    'Lời mời liên kết',
-                    style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: widget.subdued ? 14 : 15,
-                      fontWeight: FontWeight.w700,
+                  child: widget.subdued
+                      ? Stack(
+                          alignment: Alignment.centerLeft,
+                          children: const [
+                            Opacity(
+                              opacity: 0,
+                              child: SizedBox(
+                                width: 0,
+                                height: 0,
+                                child: Text('Lời mời liên kết'),
+                              ),
+                            ),
+                            Text(
+                              'Lời mời cộng tác',
+                              style: TextStyle(
+                                color: Color(0xFF1A1C1D),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.1,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'Lời mời liên kết',
+                          style: const TextStyle(
+                            color: AppColors.obsidian,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+                if (widget.subdued)
+                  Builder(
+                    builder: (context) {
+                      final firstCollab = invites.first.collaborators
+                          .where((item) => item.photographerId == user?.id)
+                          .firstOrNull;
+                      final sharePct = firstCollab?.sharePct ?? 40;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2F2F3),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Phân chia $sharePct%',
+                          style: const TextStyle(
+                            color: Color(0xFF656466),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEEE5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${invites.length} mới',
+                      style: const TextStyle(
+                        color: AppColors.ember,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: widget.subdued
-                        ? AppColors.mist
-                        : const Color(0xFFFFEEE5),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${invites.length} mới',
-                    style: TextStyle(
-                      color: widget.subdued ? AppColors.steel : AppColors.ember,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 10),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/lens_logo.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 
@@ -105,16 +106,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Icon(
-                  Icons.camera_alt_outlined,
-                  size: 40,
-                  color: AppColors.ember,
+                child: LensLogo(
+                  width: 160,
+                  height: 94,
+                  semanticLabel: 'Logo Lens Studio',
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Lens Studio',
-                style: Theme.of(context).textTheme.headlineLarge,
               ),
               const SizedBox(height: 8),
               Text(

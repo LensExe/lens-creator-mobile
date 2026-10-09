@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/creator_avatar.dart';
-import '../../../../core/widgets/creator_decision_actions.dart';
-import '../../../../core/widgets/creator_status_badge.dart';
 import '../../../../domain/booking_rules.dart';
 import '../../../../domain/models/models.dart';
 
@@ -23,10 +19,10 @@ class HomeBookingCard extends StatelessWidget {
   final VoidCallback? onMessage;
 
   String get _money =>
-      '${NumberFormat.decimalPattern('vi').format(booking.price)} ₫';
+      '${NumberFormat.decimalPattern('vi').format(booking.price)} đ';
 
   String get _deposit =>
-      '${NumberFormat.decimalPattern('vi').format(booking.depositAmount)} ₫';
+      '${NumberFormat.decimalPattern('vi').format(booking.depositAmount)} đ';
 
   String get _dateAndTime {
     final date = DateTime.tryParse(booking.date);
@@ -49,300 +45,552 @@ class HomeBookingCard extends StatelessWidget {
     );
     final end =
         '${(totalMinutes ~/ 60).toString().padLeft(2, '0')}:${(totalMinutes % 60).toString().padLeft(2, '0')}';
-    return '$dateLabel · $start – $end';
+    return '$dateLabel · $start - $end';
+  }
+
+  String get _clientShortName {
+    final parts = booking.clientName.trim().split(RegExp(r'\s+'));
+    return parts.isNotEmpty ? parts.last : booking.clientName;
   }
 
   @override
   Widget build(BuildContext context) {
     final isPending = booking.status == BookingStatus.pending;
-    final isDelivered =
-        booking.status == BookingStatus.held ||
-        booking.status == BookingStatus.released;
-    final hasDeposit = booking.depositAmount > 0;
-    final package = booking.packageName?.trim();
-    final service = package == null || package.isEmpty
-        ? booking.style
-        : '${booking.style} · $package';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
-        border: Border.all(color: AppColors.fog),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE7E5E4)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x05000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            blurRadius: 3,
+            offset: Offset(0, 1),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: () => context.push('/photographer_home/booking/${booking.id}'),
-          borderRadius: BorderRadius.circular(AppTokens.radiusCard),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(AppTokens.space4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CreatorAvatar(name: booking.clientName, size: 40),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Text(
-                          booking.clientName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 14,
-                            height: 1.25,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    CreatorStatusBadge(status: booking.status),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(11),
-                  decoration: BoxDecoration(
-                    color: AppColors.mist,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.fog),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _BookingInfoRow(
-                        icon: Icons.photo_camera_outlined,
-                        text: service,
-                        emphasized: true,
-                      ),
-                      const SizedBox(height: 7),
-                      _BookingInfoRow(
-                        icon: Icons.event_outlined,
-                        text: _dateAndTime,
-                      ),
-                      const SizedBox(height: 7),
-                      _BookingInfoRow(
-                        icon: Icons.location_on_outlined,
-                        text: booking.location,
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 9),
-                        child: Divider(height: 1),
-                      ),
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              text: 'Tổng: ',
-                              style: const TextStyle(
-                                color: AppColors.steel,
-                                fontSize: 11,
-                              ),
-                              children: [
-                                TextSpan(
-                                  text: _money,
-                                  style: const TextStyle(
-                                    color: AppColors.ink,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (hasDeposit) _DepositBadge(amount: _deposit),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (isPending && onDecide != null) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      if (onMessage != null) ...[
-                        SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: OutlinedButton(
-                            onPressed: onMessage,
-                            style: OutlinedButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              foregroundColor: AppColors.graphite,
-                              side: const BorderSide(color: AppColors.fog),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.chat_bubble_outline,
-                              size: 17,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: CreatorDecisionActions(
-                          onDecline: () => onDecide!(BookingStatus.cancelled),
-                          onAccept: () => onDecide!(BookingStatus.confirmed),
-                          declineLabel: 'Từ chối',
-                          acceptLabel: 'Xác nhận',
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  if (isDelivered) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Thực nhận ${NumberFormat.decimalPattern('vi').format(BookingRules.payoutFor(booking, booking.photographerId))} ₫'
-                      '${booking.status == BookingStatus.held ? ' · Đã giao ${booking.deliveredPhotos}/${booking.promisedPhotos ?? 1} ảnh' : ''}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.steel,
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                  if (onMessage != null || isDelivered) ...[
-                    const SizedBox(height: 7),
-                    Wrap(
-                      spacing: 4,
-                      children: [
-                        if (onMessage != null &&
-                            booking.status != BookingStatus.cancelled)
-                          TextButton.icon(
-                            onPressed: onMessage,
-                            icon: const Icon(
-                              Icons.chat_bubble_outline,
-                              size: 16,
-                            ),
-                            label: const Text('Nhắn tin'),
-                          ),
-                        if (isDelivered)
-                          TextButton.icon(
-                            onPressed: () => context.push(
-                              '/photographer_home/booking/${booking.id}/gallery',
-                            ),
-                            icon: const Icon(
-                              Icons.photo_library_outlined,
-                              size: 16,
-                            ),
-                            label: Text(
-                              booking.status == BookingStatus.held
-                                  ? 'Giao ảnh'
-                                  : 'Xem ảnh',
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ],
-              ],
-            ),
+            padding: const EdgeInsets.all(16),
+            child: isPending && onDecide != null
+                ? _buildPendingCard(context)
+                : _buildUpcomingCard(context),
           ),
         ),
       ),
     );
   }
-}
 
-class _BookingInfoRow extends StatelessWidget {
-  const _BookingInfoRow({
-    required this.icon,
-    required this.text,
-    this.emphasized = false,
-  });
+  Widget _buildPendingCard(BuildContext context) {
+    final hasDeposit = booking.depositAmount > 0;
+    final package = booking.packageName?.trim();
+    final service = package == null || package.isEmpty
+        ? booking.style
+        : '${booking.style} · $package';
+    final locationText = booking.location.isNotEmpty
+        ? ' (${booking.location})'
+        : '';
 
-  final IconData icon;
-  final String text;
-  final bool emphasized;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(top: 1),
-        child: Icon(
-          icon,
-          size: 15,
-          color: emphasized ? AppColors.ember : AppColors.steel,
-        ),
-      ),
-      const SizedBox(width: 7),
-      Expanded(
-        child: Text(
-          text,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: emphasized ? AppColors.ink : AppColors.graphite,
-            fontSize: emphasized ? 12 : 11.5,
-            height: 1.35,
-            fontWeight: emphasized ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-class _DepositBadge extends StatelessWidget {
-  const _DepositBadge({required this.amount});
-
-  final String amount;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(maxWidth: 176),
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: AppColors.successSoft,
-      borderRadius: BorderRadius.circular(7),
-      border: Border.all(color: const Color(0x332E9B62)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.verified_outlined, size: 13, color: Color(0xFF087443)),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            'Đã cọc $amount',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF087443),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CreatorAvatar(name: booking.clientName, size: 40),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    booking.clientName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF1A1C1D),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Gửi gần đây',
+                    style: TextStyle(color: Color(0xFF8E8D91), fontSize: 11),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFDBCF),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'Chờ duyệt',
+                style: TextStyle(
+                  color: Color(0xFFA83900),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAFAFB),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFEEEEEF)),
           ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.photo_camera_outlined,
+                    size: 16,
+                    color: Color(0xFFA83900),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      service,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1A1C1D),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.event_outlined,
+                    size: 16,
+                    color: Color(0xFF656466),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '$_dateAndTime$locationText',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF656466),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0xFFF0F0F1),
+                ),
+              ),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      text: 'Tổng: ',
+                      style: const TextStyle(
+                        color: Color(0xFF737278),
+                        fontSize: 11,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: _money,
+                          style: const TextStyle(
+                            color: Color(0xFF1A1C1D),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (hasDeposit)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0x66A7F3D0)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.verified_rounded,
+                            size: 13,
+                            color: Color(0xFF047857),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Đã cọc $_deposit Escrow',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF047857),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            if (onMessage != null) ...[
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: OutlinedButton(
+                  onPressed: onMessage,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    foregroundColor: const Color(0xFF474649),
+                    side: const BorderSide(color: Color(0xFFE2E1E3)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: SizedBox(
+                height: 36,
+                child: OutlinedButton(
+                  onPressed: () => onDecide!(BookingStatus.cancelled),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    foregroundColor: const Color(0xFF474649),
+                    side: const BorderSide(color: Color(0xFFE2E1E3)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  child: const Text(
+                    'Từ chối',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 36,
+                child: FilledButton(
+                  onPressed: () => onDecide!(BookingStatus.confirmed),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    backgroundColor: const Color(0xFF1A1C1D),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  child: const Text(
+                    'Xác nhận',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
-    ),
-  );
+    );
+  }
+
+  Widget _buildUpcomingCard(BuildContext context) {
+    final package = booking.packageName?.trim();
+    final service = package == null || package.isEmpty
+        ? booking.style
+        : '${booking.style} · $package';
+    final isDelivered =
+        booking.status == BookingStatus.held ||
+        booking.status == BookingStatus.released;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CreatorAvatar(name: booking.clientName, size: 40),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    booking.clientName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF1A1C1D),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Khách hàng thân thiết',
+                    style: TextStyle(color: Color(0xFF8E8D91), fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Đã cọc Escrow',
+                    style: TextStyle(
+                      color: Color(0xFF065F46),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.only(left: 12, top: 2, bottom: 2),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: const Color(0xFFFF5A00).withValues(alpha: 0.4),
+                width: 2,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                service,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF1A1C1D),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.schedule_rounded,
+                    size: 15,
+                    color: Color(0xFF8E8D91),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _dateAndTime,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF656466),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (booking.location.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 15,
+                      color: Color(0xFF8E8D91),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        booking.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF656466),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (isDelivered) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Thực nhận ${NumberFormat.decimalPattern('vi').format(BookingRules.payoutFor(booking, booking.photographerId))} đ'
+            '${booking.status == BookingStatus.held ? ' · Đã giao ${booking.deliveredPhotos}/${booking.promisedPhotos ?? 1} ảnh' : ''}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF737278),
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+        ],
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 10),
+          child: Divider(height: 1, thickness: 1, color: Color(0xFFF4F3F4)),
+        ),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(
+                  Icons.verified_user_rounded,
+                  size: 14,
+                  color: Color(0xFF059669),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'Ký quỹ Escrow bảo vệ an toàn',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF737278)),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isDelivered) ...[
+                  TextButton.icon(
+                    onPressed: () => context.push(
+                      '/photographer_home/booking/${booking.id}/gallery',
+                    ),
+                    icon: const Icon(Icons.photo_library_outlined, size: 15),
+                    label: Text(
+                      booking.status == BookingStatus.held
+                          ? 'Giao ảnh'
+                          : 'Xem ảnh',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                if (onMessage != null)
+                  FilledButton.icon(
+                    onPressed: onMessage,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF4F4F5),
+                      foregroundColor: const Color(0xFF1A1C1D),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      minimumSize: const Size(0, 32),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 14,
+                    ),
+                    label: Text(
+                      'Nhắn tin với $_clientShortName',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }

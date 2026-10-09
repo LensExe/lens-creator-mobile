@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/lens_logo.dart';
 import '../../../providers/data_providers.dart';
 import '../assistant/assistant_provider.dart';
 import 'conversation_provider.dart';
@@ -101,10 +102,13 @@ class _MessagesListScreenState extends ConsumerState<MessagesListScreen> {
                 color: AppColors.ember,
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                color: AppColors.snow,
-                size: 19,
+              child: const Center(
+                child: LensLogo(
+                  width: 29,
+                  height: 18,
+                  color: AppColors.snow,
+                  semanticLabel: 'Logo Lens',
+                ),
               ),
             ),
             const SizedBox(width: 9),

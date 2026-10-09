@@ -3,20 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/creator_empty_state.dart';
-import '../../core/widgets/creator_list_row.dart';
 import '../../core/widgets/creator_loading_state.dart';
-import '../../core/widgets/creator_section_header.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 import 'bookings/widgets/collaboration_invites.dart';
 import 'home/widgets/home_booking_card.dart';
 import 'messages/conversation_navigation.dart';
 import 'messages/conversation_provider.dart';
-import 'widgets/photographer_app_bar.dart';
 import 'wallet/wallet_provider.dart';
+import 'widgets/photographer_app_bar.dart';
 
 class PhotographerHomeScreen extends ConsumerWidget {
   const PhotographerHomeScreen({super.key});
@@ -37,8 +34,9 @@ class PhotographerHomeScreen extends ConsumerWidget {
           data: (entries) =>
               entries.fold<int>(0, (total, entry) => total + entry.amount),
         );
+
     return Scaffold(
-      backgroundColor: AppColors.mist,
+      backgroundColor: const Color(0xFFF8F8F9),
       appBar: const PhotographerAppBar(),
       body: state.when(
         loading: () => const CreatorLoadingState(label: 'Đang tải công việc…'),
@@ -81,7 +79,7 @@ class PhotographerHomeScreen extends ConsumerWidget {
                 maxWidth: AppTokens.contentMaxWidth,
               ),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
                 children: [
                   _HomeGreeting(
                     name: profile?.name ?? 'Nhiếp ảnh gia',
@@ -98,15 +96,68 @@ class PhotographerHomeScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  CreatorSectionHeader(
-                    title: 'Yêu cầu đặt lịch',
-                    count: pending.length,
-                    actionLabel: pending.isEmpty ? null : 'Xem tất cả',
-                    onAction: pending.isEmpty
-                        ? null
-                        : () => context.go('/photographer_home/bookings'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Flexible(
+                              child: Text(
+                                'Yêu cầu đặt lịch',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Color(0xFF1A1C1D),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ),
+                            if (pending.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF5A00),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '${pending.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (pending.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () =>
+                              context.go('/photographer_home/bookings'),
+                          child: const Text(
+                            'Xem tất cả',
+                            style: TextStyle(
+                              color: Color(0xFFA83900),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   if (pending.isEmpty)
                     const CreatorEmptyState(
                       icon: Icons.inbox_outlined,
@@ -123,15 +174,53 @@ class PhotographerHomeScreen extends ConsumerWidget {
                             .read(asyncBookingsProvider.notifier)
                             .updateBookingStatus(booking.id, status),
                       ),
-                  const SizedBox(height: 15),
-                  CreatorSectionHeader(
-                    title: 'Lịch chụp tiếp theo',
-                    actionLabel: upcoming.isEmpty ? null : 'Mở lịch đặt',
-                    onAction: upcoming.isEmpty
-                        ? null
-                        : () => context.go('/photographer_home/bookings'),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: const [
+                            Icon(
+                              Icons.calendar_month_outlined,
+                              size: 18,
+                              color: Color(0xFF1A1C1D),
+                            ),
+                            SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Lịch chụp tiếp theo',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Color(0xFF1A1C1D),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (upcoming.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () =>
+                              context.go('/photographer_home/bookings'),
+                          child: const Text(
+                            'Mở lịch đặt',
+                            style: TextStyle(
+                              color: Color(0xFFA83900),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   if (upcoming.isEmpty)
                     const CreatorEmptyState(
                       icon: Icons.event_available_outlined,
@@ -146,11 +235,11 @@ class PhotographerHomeScreen extends ConsumerWidget {
                         onMessage: () =>
                             openClientConversation(context, ref, booking),
                       ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   const CollaborationInvites(subdued: true),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 20),
                   const _WorkspaceToolsHeading(),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 10),
                   _WorkspaceLinks(
                     unreadMessages: unreadMessages,
                     walletBalance: walletBalance,
@@ -184,75 +273,75 @@ class _HomeGreeting extends StatelessWidget {
   final DateTime date;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.ember,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'HÔM NAY  ·  ${DateFormat('dd/MM/yyyy').format(date)}',
-            style: const TextStyle(
-              color: AppColors.steel,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 9),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Text(
-              'Chào, $name',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontSize: 22,
-                height: 1.15,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.6,
+  Widget build(BuildContext context) {
+    final cityDisplay = city.trim().isNotEmpty ? city.trim() : 'Hà Nội';
+    final dateDisplay = 'Hôm nay · ${DateFormat("dd 'Tháng' MM").format(date)}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF5A00),
+                shape: BoxShape.circle,
               ),
             ),
-          ),
-          if (city.trim().isNotEmpty) ...[
             const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 92),
-              child: Text(
-                city,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-                style: const TextStyle(
-                  color: AppColors.steel,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+            Text(
+              dateDisplay,
+              style: const TextStyle(
+                color: Color(0xFF8E8D91),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.1,
               ),
             ),
           ],
-        ],
-      ),
-      const SizedBox(height: 5),
-      const Text(
-        'Đây là những việc bạn cần xử lý hôm nay.',
-        style: TextStyle(color: AppColors.steel, fontSize: 13, height: 1.4),
-      ),
-    ],
-  );
+        ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Expanded(
+              child: Text(
+                'Chào, $name',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF1A1C1D),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$cityDisplay · 28°C',
+              style: const TextStyle(
+                color: Color(0xFF737278),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Đây là những việc bạn cần xử lý hôm nay.',
+          style: TextStyle(
+            color: Color(0xFF6B696F),
+            fontSize: 13,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _WorkspaceToolsHeading extends StatelessWidget {
@@ -262,10 +351,10 @@ class _WorkspaceToolsHeading extends StatelessWidget {
   Widget build(BuildContext context) => const Text(
     'CÔNG CỤ LÀM VIỆC',
     style: TextStyle(
-      color: AppColors.steel,
-      fontSize: 11,
+      color: Color(0xFF8E8D91),
+      fontSize: 14,
       fontWeight: FontWeight.w700,
-      letterSpacing: 1,
+      letterSpacing: 0.8,
     ),
   );
 }
@@ -278,53 +367,69 @@ class _AttentionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: AppColors.obsidian,
-    borderRadius: BorderRadius.circular(22),
+    color: const Color(0xFF1D1F21),
+    borderRadius: BorderRadius.circular(12),
     child: InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 17, 14, 17),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: AppColors.ember.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(14),
+                color: Colors.white.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.inbox_outlined,
-                color: AppColors.snow,
-                size: 21,
+                Icons.pending_actions_rounded,
+                color: Colors.white,
+                size: 20,
               ),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    count == 0
-                        ? 'Không có yêu cầu cần phản hồi'
-                        : '$count yêu cầu đang chờ phản hồi',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.snow,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      height: 1.25,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          count == 0
+                              ? 'Không có yêu cầu cần phản hồi'
+                              : '$count yêu cầu đang chờ phản hồi',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (count > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFF5A00),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 3),
                   Text(
                     count == 0
                         ? 'Cập nhật lịch nhận khách'
-                        : 'Mở danh sách để phản hồi khách',
+                        : 'Chạm để duyệt nhanh danh sách',
                     style: const TextStyle(
-                      color: AppColors.pebble,
+                      color: Color(0xFFA1A1AA),
                       fontSize: 12,
                     ),
                   ),
@@ -334,7 +439,7 @@ class _AttentionPanel extends StatelessWidget {
             const SizedBox(width: 8),
             const Icon(
               Icons.arrow_forward_rounded,
-              color: AppColors.snow,
+              color: Color(0xFFD4D4D8),
               size: 18,
             ),
           ],
@@ -365,101 +470,128 @@ class _WorkspaceLinks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14),
     decoration: BoxDecoration(
-      color: AppColors.snow,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.fog),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE7E5E4)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x05000000),
+          blurRadius: 3,
+          offset: Offset(0, 1),
+        ),
+      ],
     ),
+    clipBehavior: Clip.antiAlias,
     child: Column(
       children: [
-        CreatorListRow(
+        _ToolRow(
           icon: Icons.calendar_month_outlined,
           title: 'Lịch làm việc',
           onTap: onAvailability,
         ),
-        const Divider(height: 1),
-        CreatorListRow(
+        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F1F3)),
+        _ToolRow(
           icon: Icons.photo_library_outlined,
           title: 'Hồ sơ năng lực',
           onTap: onPortfolio,
         ),
-        const Divider(height: 1),
-        CreatorListRow(
-          icon: Icons.inventory_2_outlined,
+        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F1F3)),
+        _ToolRow(
+          icon: Icons.style_outlined,
           title: 'Gói dịch vụ',
           onTap: onPackages,
         ),
-        const Divider(height: 1),
-        CreatorListRow(
-          icon: Icons.chat_bubble_outline,
+        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F1F3)),
+        _ToolRow(
+          icon: Icons.chat_bubble_outline_rounded,
           title: 'Tin nhắn',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (unreadMessages > 0) ...[
-                Container(
+          trailing: unreadMessages > 0
+              ? Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
+                    horizontal: 8,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.ember,
-                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                    color: const Color(0xFFFF5A00),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     '$unreadMessages mới',
                     style: const TextStyle(
-                      color: AppColors.snow,
-                      fontSize: 10,
+                      color: Colors.white,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.ash,
-              ),
-            ],
-          ),
+                )
+              : null,
           onTap: onMessages,
         ),
-        const Divider(height: 1),
-        CreatorListRow(
+        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F1F3)),
+        _ToolRow(
           icon: Icons.account_balance_wallet_outlined,
           title: 'Ví của tôi',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (walletBalance != null) ...[
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 110),
-                  child: Text(
-                    '${NumberFormat.decimalPattern('vi').format(walletBalance)} ₫',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+          trailing: walletBalance != null
+              ? Text(
+                  '${NumberFormat.decimalPattern('vi').format(walletBalance)} đ',
+                  style: const TextStyle(
+                    color: Color(0xFF1A1C1D),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.ash,
-              ),
-            ],
-          ),
+                )
+              : null,
           onTap: onWallet,
         ),
       ],
+    ),
+  );
+}
+
+class _ToolRow extends StatelessWidget {
+  const _ToolRow({
+    required this.icon,
+    required this.title,
+    this.trailing,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: const Color(0xFF5F5E60)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF1A1C1D),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFFAAA9AE),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
