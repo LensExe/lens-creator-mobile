@@ -267,7 +267,8 @@ class _BookingRequestDetailScreenState
                 maxWidth: AppTokens.contentMaxWidth,
               ),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
                 children: [
                   // 1. Hero Identity Card
                   _BookingHeroCard(booking: b, date: date),

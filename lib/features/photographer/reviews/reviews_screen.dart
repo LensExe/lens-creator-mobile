@@ -44,7 +44,8 @@ class ReviewsScreen extends ConsumerWidget {
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 15, 16, 30),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 110),
         children: [
           CreatorPageHeader(
             title: profile == null

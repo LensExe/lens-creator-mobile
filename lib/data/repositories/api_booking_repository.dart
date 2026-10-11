@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/network/api_exception.dart';
+import '../../core/utils/vietnam_time.dart';
 import '../../domain/models/models.dart';
 import '../../domain/repositories/booking_repository.dart';
 
@@ -172,8 +173,12 @@ class BookingTimelineEntry {
 }
 
 Booking _booking(Map<String, dynamic> json) {
-  final from = DateTime.parse(_requiredString(json['from'], 'from')).toLocal();
-  final to = DateTime.parse(_requiredString(json['to'], 'to')).toLocal();
+  final from = VietnamTime.fromInstant(
+    DateTime.parse(_requiredString(json['from'], 'from')),
+  );
+  final to = VietnamTime.fromInstant(
+    DateTime.parse(_requiredString(json['to'], 'to')),
+  );
   final status = switch (_requiredString(json['status'], 'status')) {
     'pending' => BookingStatus.pending,
     'accepted' => BookingStatus.accepted,

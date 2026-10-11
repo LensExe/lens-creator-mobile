@@ -16,11 +16,32 @@ import '../reviews/review_provider.dart';
 import '../packages/booking_plan_repository.dart';
 import 'api_portfolio_repository.dart';
 
-class PublicProfileScreen extends ConsumerWidget {
+class PublicProfileScreen extends ConsumerStatefulWidget {
   const PublicProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PublicProfileScreen> createState() =>
+      _PublicProfileScreenState();
+}
+
+class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(myPhotographerProvider);
     final plans = ref.watch(bookingPlansProvider);
     final portfolio = ref.watch(photographerPortfolioProvider);
@@ -31,82 +52,96 @@ class PublicProfileScreen extends ConsumerWidget {
       );
     }
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F9FA),
+      appBar: AppBar(
         backgroundColor: const Color(0xFFF9F9FA),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFF9F9FA),
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 20,
-              color: Color(0xFF1A1C1D),
-            ),
-            tooltip: 'Quay lại',
-            onPressed: () => Navigator.of(context).maybePop(),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: Color(0xFF1A1C1D),
           ),
-          title: const Text(
-            'Hồ sơ nhiếp ảnh',
-            style: TextStyle(
-              color: Color(0xFF1A1C1D),
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-          centerTitle: false,
-          actions: [
-            IconButton(
-              tooltip: 'Chỉnh sửa hồ sơ',
-              icon: const Icon(
-                Icons.edit_outlined,
-                size: 22,
-                color: Color(0xFF5F5E60),
-              ),
-              onPressed: () => context.push('/photographer_home/portfolio'),
-            ),
-          ],
+          tooltip: 'Quay lại',
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: AppTokens.contentMaxWidth,
+        title: const Text(
+          'Hồ sơ nhiếp ảnh',
+          style: TextStyle(
+            color: Color(0xFF1A1C1D),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+          ),
+        ),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: 'Chỉnh sửa hồ sơ',
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 22,
+              color: Color(0xFF5F5E60),
             ),
-            child: NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _PublicProfileHeroHeader(profile: profile),
-                      const _PublicProfileTabBar(),
-                    ],
+            onPressed: () => context.push('/photographer_home/portfolio'),
+          ),
+        ],
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: AppTokens.contentMaxWidth,
+          ),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: _PublicProfileHeroHeader(profile: profile),
+              ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PublicProfileTabBarDelegate(
+                  child: Container(
+                    color: const Color(0xFFF9F9FA),
+                    child: _PublicProfileTabBar(controller: _tabController),
                   ),
                 ),
-              ],
-              body: TabBarView(
-                children: [
-                  _PortfolioTab(
-                    profile: profile,
-                    portfolio: portfolio,
-                    onRetry: () =>
-                        ref.invalidate(photographerPortfolioProvider),
-                  ),
-                  _AboutTab(
-                    profile: profile,
-                    plans: plans,
-                    onRetry: () => ref.invalidate(bookingPlansProvider),
-                  ),
-                  _ProfileReviewsTab(
-                    profile: profile,
-                    onSeeAll: () => context.push('/photographer_home/reviews'),
-                  ),
-                ],
               ),
-            ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+                sliver: SliverToBoxAdapter(
+                  child: AnimatedBuilder(
+                    animation: _tabController,
+                    builder: (context, _) {
+                      switch (_tabController.index) {
+                        case 0:
+                          return _PortfolioTab(
+                            profile: profile,
+                            portfolio: portfolio,
+                            onRetry: () =>
+                                ref.invalidate(photographerPortfolioProvider),
+                          );
+                        case 1:
+                          return _AboutTab(
+                            profile: profile,
+                            plans: plans,
+                            onRetry: () => ref.invalidate(bookingPlansProvider),
+                          );
+                        case 2:
+                        default:
+                          return _ProfileReviewsTab(
+                            profile: profile,
+                            onSeeAll: () =>
+                                context.push('/photographer_home/reviews'),
+                          );
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -380,11 +415,13 @@ class _PublicProfileHeroHeader extends StatelessWidget {
 // 2. SEGMENTED TAB BAR
 // ============================================================================
 class _PublicProfileTabBar extends StatelessWidget {
-  const _PublicProfileTabBar();
+  const _PublicProfileTabBar({required this.controller});
+
+  final TabController controller;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
     child: Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -392,6 +429,7 @@ class _PublicProfileTabBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(9999),
       ),
       child: TabBar(
+        controller: controller,
         dividerColor: Colors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
         indicator: BoxDecoration(
@@ -420,6 +458,30 @@ class _PublicProfileTabBar extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _PublicProfileTabBarDelegate extends SliverPersistentHeaderDelegate {
+  const _PublicProfileTabBarDelegate({required this.child});
+
+  final Widget child;
+
+  @override
+  double get minExtent => 54;
+
+  @override
+  double get maxExtent => 54;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) =>
+      child;
+
+  @override
+  bool shouldRebuild(covariant _PublicProfileTabBarDelegate oldDelegate) =>
+      oldDelegate.child != child;
 }
 
 // ============================================================================
@@ -455,10 +517,8 @@ class _PortfolioTab extends StatelessWidget {
   );
 
   Widget _gallery(BuildContext context, Photographer profile) =>
-      SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
@@ -543,8 +603,7 @@ class _PortfolioTab extends StatelessWidget {
                 },
               ),
           ],
-        ),
-      );
+        );
 }
 
 // ============================================================================
@@ -562,10 +621,8 @@ class _AboutTab extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // "Về tôi" Card
         _PublicProfileSurfaceCard(
@@ -616,8 +673,7 @@ class _AboutTab extends StatelessWidget {
           ),
         ),
       ],
-    ),
-  );
+    );
 }
 
 class _PlansSection extends StatelessWidget {
@@ -825,10 +881,8 @@ class _ProfileReviewsTab extends ConsumerWidget {
     final recentReviews = [...reviews]
       ..sort((first, second) => second.date.compareTo(first.date));
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Rating Summary Card
           _PublicProfileSurfaceCard(
@@ -921,8 +975,7 @@ class _ProfileReviewsTab extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
 

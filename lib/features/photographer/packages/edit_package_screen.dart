@@ -230,7 +230,8 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
               maxWidth: AppTokens.contentMaxWidth,
             ),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
               children: [
                 _PackageFormHeader(
                   title: current == null ? 'Tạo gói chụp' : 'Cập nhật gói chụp',

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/creator_avatar.dart';
 import '../../../core/widgets/lens_logo.dart';
+import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
 
 class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
@@ -16,7 +17,12 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(myPhotographerProvider);
+    Photographer? profile;
+    try {
+      profile = ref.watch(myPhotographerProvider);
+    } catch (_) {
+      profile = null;
+    }
     return AppBar(
       toolbarHeight: preferredSize.height,
       backgroundColor: const Color(0xFFF8F8F9),

@@ -26,7 +26,8 @@ class PortfolioEditorForm extends StatelessWidget {
   Widget build(BuildContext context) => Form(
     key: formKey,
     child: ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
       children: [
         const Text(
           'Chỉnh sửa hồ sơ',

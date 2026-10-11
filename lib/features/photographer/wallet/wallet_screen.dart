@@ -214,7 +214,8 @@ class WalletScreen extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
           children: [
             Container(
               padding: const EdgeInsets.all(21),

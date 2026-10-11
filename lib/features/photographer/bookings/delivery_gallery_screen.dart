@@ -137,7 +137,8 @@ class _DeliveryGalleryScreenState extends ConsumerState<DeliveryGalleryScreen> {
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 15, 16, 30),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 110),
         children: [
           CreatorPageHeader(
             title: 'Booking ${widget.bookingId.substring(0, 8)}',

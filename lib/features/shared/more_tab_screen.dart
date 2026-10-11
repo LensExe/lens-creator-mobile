@@ -9,6 +9,7 @@ import '../../core/widgets/creator_list_row.dart';
 import '../../core/widgets/creator_page_header.dart';
 import '../../core/widgets/creator_section_header.dart';
 import '../../providers/data_providers.dart';
+import '../photographer/widgets/photographer_app_bar.dart';
 import '../photographer/widgets/more_destinations.dart';
 
 class MoreTabScreen extends ConsumerWidget {
@@ -19,45 +20,69 @@ class MoreTabScreen extends ConsumerWidget {
     final user = ref.watch(authUserProvider);
     return Scaffold(
       backgroundColor: AppColors.mist,
-      appBar: AppBar(title: const Text('Studio')),
+      appBar: const PhotographerAppBar(),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             maxWidth: AppTokens.contentMaxWidth,
           ),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            children: [
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const CreatorPageHeader(title: 'Studio của bạn'),
               if (user != null) ...[
-                const SizedBox(height: 21),
-                Row(
-                  children: [
-                    CreatorAvatar(name: user.name, size: 48),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name,
-                            style: const TextStyle(
-                              color: AppColors.obsidian,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            user.email,
-                            style: const TextStyle(
-                              color: AppColors.steel,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () => context.push('/photographer_home/settings'),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
                     ),
-                  ],
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.pebble),
+                    ),
+                    child: Row(
+                      children: [
+                        CreatorAvatar(name: user.name, size: 48),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.name,
+                                style: const TextStyle(
+                                  color: AppColors.obsidian,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                user.email,
+                                style: const TextStyle(
+                                  color: AppColors.steel,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                          color: AppColors.steel,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
               const SizedBox(height: 27),
@@ -103,6 +128,7 @@ class MoreTabScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

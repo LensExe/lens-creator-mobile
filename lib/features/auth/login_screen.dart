@@ -170,6 +170,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Google trên ứng dụng Creator'),
           content: const Text(
             'Backend đã cấp URL đăng nhập, nhưng chỉ có một callback frontend dùng chung. Cần callback/deep link để trả handoff code về đúng ứng dụng trước khi Mobile có thể nhận phiên đăng nhập.',
@@ -211,7 +214,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 color: Colors.white,
                 size: 20,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   message,
@@ -227,7 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           backgroundColor: AppColors.destructive,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           duration: const Duration(seconds: 4),
@@ -237,7 +240,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.mist,
+    backgroundColor: Colors.white,
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -246,30 +249,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           child: ListView(
             shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             children: [
+              // Editorial Header / Brand Section
               const Align(
                 alignment: Alignment.centerLeft,
                 child: LensLogo(
-                  width: 160,
-                  height: 94,
+                  width: 130,
+                  height: 76,
                   semanticLabel: 'Logo Lens Studio',
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                signup
+                    ? 'Trở thành Photographer\ncủa LENS'
+                    : 'Chào mừng trở lại',
+                style: const TextStyle(
+                  color: AppColors.graphite,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                  height: 1.2,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                signup ? 'Tạo tài khoản nhiếp ảnh gia' : 'Chào mừng trở lại',
-                style: const TextStyle(color: AppColors.steel, fontSize: 14),
+                signup
+                    ? 'Đăng ký hồ sơ để bắt đầu nhận lịch chụp và kết nối với khách hàng.'
+                    : 'Đăng nhập vào không gian làm việc dành cho nhiếp ảnh gia.',
+                style: const TextStyle(
+                  color: AppColors.steel,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
               ),
               if (GoRouterState.of(context).uri.queryParameters['reason'] ==
                   'photographer-only') ...[
-                const SizedBox(height: 14),
-                const Text(
-                  'Ứng dụng này dành cho tài khoản nhiếp ảnh gia. Tài khoản khách hàng tiếp tục sử dụng ứng dụng LENS dành cho khách.',
-                  style: TextStyle(
-                    color: AppColors.graphite,
-                    fontSize: 13,
-                    height: 1.4,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.mist,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.steel.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: const Text(
+                    'Ứng dụng này dành cho tài khoản nhiếp ảnh gia. Tài khoản khách hàng tiếp tục sử dụng ứng dụng LENS dành cho khách.',
+                    style: TextStyle(
+                      color: AppColors.graphite,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
@@ -282,9 +315,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     if (signup) ...[
                       TextFormField(
                         controller: name,
+                        textCapitalization: TextCapitalization.words,
                         decoration: const InputDecoration(
                           labelText: 'Họ và tên',
-                          hintText: 'Ví dụ: Bé Đẹp hoặc Nguyễn Văn An',
+                          hintText: 'Ví dụ: Nguyễn Văn An',
                         ),
                         validator: (value) {
                           final trimmed = (value ?? '').trim();
@@ -296,12 +330,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               .where((w) => w.isNotEmpty)
                               .toList();
                           if (words.length < 2) {
-                            return 'Vui lòng nhập cả họ và tên (ví dụ: Bé Đẹp)';
+                            return 'Vui lòng nhập cả họ và tên';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: location,
                         textCapitalization: TextCapitalization.words,
@@ -313,24 +347,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ? 'Vui lòng nhập khu vực hoạt động'
                             : null,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 20),
                       const Text(
-                        'Phong cách chụp',
+                        'Phong cách chụp sở trường',
                         style: TextStyle(
                           color: AppColors.graphite,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        runSpacing: 0,
+                        runSpacing: 8,
                         children: [
                           for (final entry in _photographyStyles.entries)
                             FilterChip(
                               label: Text(entry.value),
                               selected: selectedStyles.contains(entry.key),
+                              selectedColor: AppColors.graphite,
+                              labelStyle: TextStyle(
+                                color: selectedStyles.contains(entry.key)
+                                    ? Colors.white
+                                    : AppColors.graphite,
+                                fontSize: 13,
+                                fontWeight: selectedStyles.contains(entry.key)
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                              backgroundColor: AppColors.mist,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: selectedStyles.contains(entry.key)
+                                      ? AppColors.graphite
+                                      : AppColors.steel.withValues(alpha: 0.2),
+                                ),
+                              ),
                               onSelected: busy
                                   ? null
                                   : (selected) => setState(() {
@@ -343,7 +396,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                     ],
                     TextFormField(
                       controller: email,
@@ -356,7 +409,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ? null
                           : 'Email không hợp lệ',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: password,
                       obscureText: obscure,
@@ -374,6 +427,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             obscure
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
+                            size: 20,
+                            color: AppColors.steel,
                           ),
                         ),
                       ),
@@ -392,17 +447,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: busy ? null : _openForgotPassword,
-                          child: const Text('Quên mật khẩu?'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.graphite,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          child: const Text(
+                            'Quên mật khẩu?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ),
                       ),
                     if (success != null)
                       Padding(
-                        padding: const EdgeInsets.only(top: 14),
+                        padding: const EdgeInsets.only(top: 16),
                         child: Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: AppColors.success.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: AppColors.success.withValues(alpha: 0.3),
                             ),
@@ -430,43 +495,85 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: busy ? null : _submit,
-                      child: Text(
-                        busy
-                            ? 'Đang xử lý...'
-                            : signup
-                            ? 'Tạo tài khoản'
-                            : 'Đăng nhập',
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: 52,
+                      child: FilledButton(
+                        onPressed: busy ? null : _submit,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.graphite,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          busy
+                              ? 'Đang xử lý...'
+                              : signup
+                              ? 'Tạo tài khoản'
+                              : 'Đăng nhập',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                     if (!signup) ...[
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: busy ? null : _startGoogleLogin,
-                        icon: const Icon(Icons.g_mobiledata, size: 24),
-                        label: const Text('Tiếp tục với Google'),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: busy ? null : _startGoogleLogin,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.graphite,
+                            side: BorderSide(
+                              color: AppColors.steel.withValues(alpha: 0.3),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.g_mobiledata, size: 28),
+                          label: const Text(
+                            'Tiếp tục với Google',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: busy
-                    ? null
-                    : () {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        setState(() {
-                          signup = !signup;
-                          success = null;
-                        });
-                      },
-                child: Text(
-                  signup
-                      ? 'Đã có tài khoản? Đăng nhập'
-                      : 'Chưa có tài khoản? Đăng ký',
+              const SizedBox(height: 24),
+              Center(
+                child: TextButton(
+                  onPressed: busy
+                      ? null
+                      : () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          setState(() {
+                            signup = !signup;
+                            success = null;
+                          });
+                        },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.graphite,
+                  ),
+                  child: Text(
+                    signup
+                        ? 'Đã có tài khoản? Đăng nhập'
+                        : 'Chưa có tài khoản? Đăng ký',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
             ],

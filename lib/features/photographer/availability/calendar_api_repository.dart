@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/utils/vietnam_time.dart';
 
 class CalendarEntry {
   const CalendarEntry({
@@ -98,16 +99,16 @@ class CalendarApiRepository {
   }
 
   CalendarEntry _entry(Map<String, dynamic> json, String kind) {
-    final from = DateTime.tryParse('${json['from']}');
-    final to = DateTime.tryParse('${json['to']}');
-    if (from == null || to == null) {
+    final rawFrom = DateTime.tryParse('${json['from']}');
+    final rawTo = DateTime.tryParse('${json['to']}');
+    if (rawFrom == null || rawTo == null) {
       throw const ApiException('Backend trả về khoảng lịch không hợp lệ.');
     }
     return CalendarEntry(
       id: '${json['id'] ?? ''}',
       kind: kind,
-      from: from,
-      to: to,
+      from: VietnamTime.fromInstant(rawFrom),
+      to: VietnamTime.fromInstant(rawTo),
       status: json['status']?.toString(),
       location: json['location']?.toString(),
       reason: json['reason']?.toString(),
@@ -122,27 +123,13 @@ final calendarApiRepositoryProvider = Provider<CalendarApiRepository>(
 final creatorCalendarProvider = FutureProvider.autoDispose<CalendarSnapshot>((
   ref,
 ) {
-  final now = DateTime.now();
+  final today = VietnamTime.today();
   return ref
       .read(calendarApiRepositoryProvider)
-      .getRange(
-        DateTime(now.year, now.month, now.day),
-        DateTime(now.year, now.month, now.day).add(const Duration(days: 91)),
-      );
+      .getRange(today, today.add(const Duration(days: 91)));
 });
 
-String calendarIsoWithOffset(DateTime value) {
-  final local = value.toLocal();
-  final offset = local.timeZoneOffset;
-  final sign = offset.isNegative ? '-' : '+';
-  final hours = offset.inHours.abs().toString().padLeft(2, '0');
-  final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-  final date =
-      '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
-  final time =
-      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}:00';
-  return '${date}T$time$sign$hours:$minutes';
-}
+String calendarIsoWithOffset(DateTime value) => VietnamTime.toApiIso(value);
 
 Object? _unwrap(Object? value) {
   var result = value;

@@ -43,7 +43,8 @@ class StorageScreen extends ConsumerWidget {
       child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(subscriptionWorkspaceProvider),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
           children: [
             _CurrentSubscriptionCard(
               current: workspace.current,

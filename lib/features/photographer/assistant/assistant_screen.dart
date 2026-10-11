@@ -26,35 +26,41 @@ class AssistantScreen extends StatelessWidget {
         ),
         title: const Text('Trợ lý AI'),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.pageHorizontal),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.snow,
-              borderRadius: BorderRadius.circular(AppTokens.cardRadius),
-              border: Border.all(color: AppColors.pebble),
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppTokens.contentMaxWidth,
             ),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.bot, size: 32, color: AppColors.steel),
-                SizedBox(height: 16),
-                Text(
-                  'Trợ lý AI chưa được hỗ trợ',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Backend hiện chưa có API lưu cấu hình hoặc xử lý hội thoại AI. '
-                  'Các câu trả lời mô phỏng và tùy chọn chưa được lưu đã được tắt.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.steel, height: 1.45),
-                ),
-              ],
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.snow,
+                borderRadius: BorderRadius.circular(AppTokens.cardRadius),
+                border: Border.all(color: AppColors.pebble),
+              ),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(LucideIcons.bot, size: 32, color: AppColors.steel),
+                  SizedBox(height: 16),
+                  Text(
+                    'Trợ lý AI chưa được hỗ trợ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Backend hiện chưa có API lưu cấu hình hoặc xử lý hội thoại AI. '
+                    'Các câu trả lời mô phỏng và tùy chọn chưa được lưu đã được tắt.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.steel, height: 1.45),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

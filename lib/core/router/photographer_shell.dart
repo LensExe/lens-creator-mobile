@@ -1,72 +1,65 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../features/photographer/messages/conversation_provider.dart';
 import '../theme/app_colors.dart';
-import '../../features/photographer/widgets/more_bottom_sheet.dart';
+import '../theme/app_tokens.dart';
 
-class PhotographerShell extends StatelessWidget {
+class PhotographerShell extends ConsumerWidget {
   final Widget child;
 
   const PhotographerShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref
+        .watch(conversationsProvider)
+        .fold<int>(0, (sum, conversation) => sum + conversation.unreadCount);
+    final selectedIndex = _calculateSelectedIndex(context);
+    const destinations = [
+      _NavDestination(LucideIcons.house, 'Trang chủ'),
+      _NavDestination(LucideIcons.calendarDays, 'Lịch đặt'),
+      _NavDestination(LucideIcons.camera, 'Gói chụp'),
+      _NavDestination(LucideIcons.messageCircle, 'Tin nhắn'),
+      _NavDestination(LucideIcons.menu, 'Khác'),
+    ];
+
     return Scaffold(
+      extendBody: true,
       body: child,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.snow,
-            border: Border(top: BorderSide(color: AppColors.fog)),
-          ),
-          child: NavigationBar(
-            selectedIndex: _calculateSelectedIndex(context),
-            onDestinationSelected: (index) => _onItemTapped(index, context),
-            height: 64,
-            elevation: 0,
-            backgroundColor: AppColors.snow,
-            indicatorColor: AppColors.emberSoft,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded, color: AppColors.ember),
-                label: 'Trang chủ',
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xCCFFFFFF),
+              border: Border(
+                top: BorderSide(color: Color(0x99D4D4D8), width: 1),
               ),
-              NavigationDestination(
-                icon: Icon(Icons.calendar_month_outlined),
-                selectedIcon: Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppColors.ember,
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 7, 8, 3),
+                child: Row(
+                  children: [
+                    for (var index = 0; index < destinations.length; index++)
+                      Expanded(
+                        child: _PhotographerNavItem(
+                          destination: destinations[index],
+                          selected: selectedIndex == index,
+                          unreadCount: index == 3 ? unread : 0,
+                          onTap: () => _onItemTapped(index, context),
+                        ),
+                      ),
+                  ],
                 ),
-                label: 'Lịch đặt',
               ),
-              NavigationDestination(
-                icon: Icon(Icons.photo_camera_outlined),
-                selectedIcon: Icon(
-                  Icons.photo_camera_rounded,
-                  color: AppColors.ember,
-                ),
-                label: 'Gói chụp',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.chat_bubble_outline),
-                selectedIcon: Icon(
-                  Icons.chat_bubble_rounded,
-                  color: AppColors.ember,
-                ),
-                label: 'Tin nhắn',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.grid_view_outlined),
-                selectedIcon: Icon(
-                  Icons.grid_view_rounded,
-                  color: AppColors.ember,
-                ),
-                label: 'Khác',
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -74,7 +67,7 @@ class PhotographerShell extends StatelessWidget {
   }
 
   static int _calculateSelectedIndex(BuildContext context) {
-    final String location = GoRouterState.of(context).uri.toString();
+    final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/photographer_home/bookings') ||
         location.startsWith('/photographer_home/booking/')) {
       return 1;
@@ -102,28 +95,116 @@ class PhotographerShell extends StatelessWidget {
     switch (index) {
       case 0:
         context.go('/photographer_home');
-        break;
       case 1:
         context.go('/photographer_home/bookings');
-        break;
       case 2:
         context.go('/photographer_home/packages');
-        break;
       case 3:
         context.go('/photographer_home/messages');
-        break;
       case 4:
-        _showMoreMenu(context);
-        break;
+        context.go('/photographer_home/more');
     }
   }
+}
 
-  void _showMoreMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const MoreBottomSheet(),
+class _NavDestination {
+  final IconData icon;
+  final String label;
+
+  const _NavDestination(this.icon, this.label);
+}
+
+class _PhotographerNavItem extends StatelessWidget {
+  final _NavDestination destination;
+  final bool selected;
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  const _PhotographerNavItem({
+    required this.destination,
+    required this.selected,
+    required this.unreadCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = selected ? AppColors.obsidian : AppColors.steel;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: destination.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: 54,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    width: 36,
+                    height: 27,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.ember.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppTokens.pillRadius),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      destination.icon,
+                      size: 19,
+                      color: selected ? AppColors.ember : labelColor,
+                    ),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -4,
+                      right: -5,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.ember,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: AppColors.snow,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: labelColor,
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w700 : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

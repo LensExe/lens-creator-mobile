@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/vietnam_time.dart';
 import 'calendar_api_repository.dart';
 
 class AvailabilityScreen extends ConsumerWidget {
@@ -34,7 +35,8 @@ class AvailabilityScreen extends ConsumerWidget {
             data: (snapshot) => RefreshIndicator(
               onRefresh: () async => ref.invalidate(creatorCalendarProvider),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
                 children: [
                   const _CalendarContractNote(),
                   const SizedBox(height: 14),
@@ -261,7 +263,7 @@ class _CalendarEntryCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${dateFormat.format(entry.from.toLocal())}\nđến ${dateFormat.format(entry.to.toLocal())}'
+          '${dateFormat.format(entry.from)}\nđến ${dateFormat.format(entry.to)}'
           '${entry.location?.trim().isNotEmpty == true ? '\n${entry.location}' : ''}',
         ),
         isThreeLine: true,
@@ -352,9 +354,7 @@ class _BlockTimeDialog extends StatefulWidget {
 
 class _BlockTimeDialogState extends State<_BlockTimeDialog> {
   final reasonController = TextEditingController();
-  DateTime selectedDate = DateUtils.dateOnly(
-    DateTime.now().add(const Duration(days: 1)),
-  );
+  DateTime selectedDate = VietnamTime.today().add(const Duration(days: 1));
   TimeOfDay start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay end = const TimeOfDay(hour: 17, minute: 0);
   bool allDay = true;
@@ -418,7 +418,7 @@ class _BlockTimeDialogState extends State<_BlockTimeDialog> {
   );
 
   Future<void> _pickDate() async {
-    final today = DateUtils.dateOnly(DateTime.now());
+    final today = VietnamTime.today();
     final picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,

@@ -31,7 +31,8 @@ class PortfolioProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
     children: [
       const Text(
         'HỒ SƠ NĂNG LỰC',

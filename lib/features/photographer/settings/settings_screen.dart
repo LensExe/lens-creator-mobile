@@ -304,7 +304,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             maxWidth: AppTokens.contentMaxWidth,
           ),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
             children: [
               // Top Segmented Controls & Contextual Intro
               _SettingsTabs(

@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/creator_avatar.dart';
 import '../../../providers/data_providers.dart';
+import '../widgets/photographer_app_bar.dart';
 import 'booking_plan_repository.dart';
 import 'widgets/empty_packages_card.dart';
 import 'widgets/package_card_item.dart';
@@ -15,88 +15,10 @@ class PackagesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(myPhotographerProvider);
     final plans = ref.watch(bookingPlansProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FA),
-      appBar: AppBar(
-        toolbarHeight: 64,
-        titleSpacing: 16,
-        backgroundColor: const Color(0xFFF9F9FA),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.ember,
-                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-              ),
-              child: const Icon(
-                Icons.photo_camera_outlined,
-                color: AppColors.snow,
-                size: 19,
-              ),
-            ),
-            const SizedBox(width: 9),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'LENS',
-                        style: TextStyle(
-                          color: AppColors.ink,
-                          fontSize: 17,
-                          height: 1.15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                      SizedBox(width: 6),
-                      _StudioTag(),
-                    ],
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Bảng quản lý dịch vụ',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.steel,
-                      fontSize: 10,
-                      height: 1.2,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (profile != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: IconButton(
-                tooltip: 'Cài đặt hồ sơ',
-                onPressed: () => context.push('/photographer_home/settings'),
-                icon: CreatorAvatar(
-                  name: profile.name,
-                  imageUrl: profile.avatar,
-                  size: 36,
-                ),
-              ),
-            ),
-        ],
-      ),
+      appBar: const PhotographerAppBar(),
       body: ref.watch(authUserProvider) == null
           ? const Center(
               child: Text('Vui lòng đăng nhập tài khoản nhiếp ảnh gia'),
@@ -107,7 +29,8 @@ class PackagesScreen extends ConsumerWidget {
                   maxWidth: AppTokens.contentMaxWidth,
                 ),
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
                   children: [
                     const _PackagesPageHeader(),
                     const SizedBox(height: 22),
@@ -177,29 +100,6 @@ class _PlansError extends StatelessWidget {
       Text('Không tải được gói dịch vụ: $message'),
       TextButton(onPressed: onRetry, child: const Text('Thử lại')),
     ],
-  );
-}
-
-class _StudioTag extends StatelessWidget {
-  const _StudioTag();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-    decoration: BoxDecoration(
-      color: AppColors.ember.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-    ),
-    child: const Text(
-      'STUDIO',
-      style: TextStyle(
-        color: AppColors.ember,
-        fontSize: 8,
-        height: 1,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.8,
-      ),
-    ),
   );
 }
 

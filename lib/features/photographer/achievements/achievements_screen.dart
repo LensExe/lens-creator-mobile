@@ -45,7 +45,8 @@ class AchievementsScreen extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
             const Text(
               'Thông tin cấp bậc và huy hiệu lấy trực tiếp từ hồ sơ và danh mục Backend.',
