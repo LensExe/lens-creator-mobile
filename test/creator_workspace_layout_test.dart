@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lens_creator_mobile/core/network/auth_session_store.dart';
+import 'package:lens_creator_mobile/features/photographer/availability/calendar_api_repository.dart';
+import 'package:lens_creator_mobile/features/photographer/packages/booking_plan_repository.dart';
+import 'package:lens_creator_mobile/features/photographer/portfolio/api_portfolio_repository.dart';
+import 'package:lens_creator_mobile/features/photographer/storage/subscription_repository.dart';
+import 'package:lens_creator_mobile/features/photographer/wallet/wallet_entry.dart';
+import 'package:lens_creator_mobile/features/photographer/wallet/wallet_provider.dart';
 import 'package:lens_creator_mobile/core/widgets/creator_booking_tile.dart';
 import 'package:lens_creator_mobile/data/mock_database.dart';
 import 'package:lens_creator_mobile/domain/models/models.dart';
@@ -53,9 +60,28 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              initialAuthUserProvider.overrideWithValue(
+                MockDatabase.photographerUser,
+              ),
               myPhotographerProvider.overrideWithValue(profile),
               incomingBookingsProvider.overrideWithValue(AsyncData(bookings)),
               myBookingsProvider.overrideWithValue(bookings),
+              creatorCalendarProvider.overrideWith(
+                (ref) async =>
+                    const CalendarSnapshot(bookings: [], blocked: []),
+              ),
+              creatorBookingDetailProvider(pending.id)
+                  .overrideWith((ref) async => pending),
+              creatorBookingTimelineProvider(pending.id)
+                  .overrideWith((ref) async => const []),
+              bookingPlansProvider.overrideWith(_EmptyBookingPlansNotifier.new),
+              photographerPortfolioProvider.overrideWith(
+                (ref) async => const PortfolioWorkspace(albums: [], assets: []),
+              ),
+              subscriptionWorkspaceProvider.overrideWith(
+                (ref) async => _emptySubscriptionWorkspace,
+              ),
+              walletProvider.overrideWith(_EmptyWalletNotifier.new),
             ],
             child: MaterialApp(home: screen.$2),
           ),
@@ -100,4 +126,33 @@ void main() {
     expect(find.text(booking.clientName), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+const _emptySubscriptionWorkspace = SubscriptionWorkspace(
+  plans: [],
+  current: null,
+  features: [],
+  usage: SubscriptionUsage(
+    storageBytes: 0,
+    reservedStorageBytes: 0,
+    storageLimitBytes: null,
+    storageRemainingBytes: null,
+    storageOverLimit: false,
+    portfolioCount: 0,
+    portfolioLimit: null,
+    portfolioRemainingCount: null,
+    portfolioOverLimit: false,
+  ),
+  history: [],
+);
+
+class _EmptyBookingPlansNotifier extends BookingPlansNotifier {
+  @override
+  Future<List<PhotographerPackage>> build() async => const [];
+}
+
+class _EmptyWalletNotifier extends WalletNotifier {
+  @override
+  Future<WalletSnapshot> build() async =>
+      const WalletSnapshot(balance: 0, frozenBalance: 0, entries: []);
 }

@@ -50,7 +50,10 @@ class WorkSchedule {
     if (booking.date != date ||
         booking.timeSlot == null ||
         booking.status == BookingStatus.cancelled ||
-        booking.status == BookingStatus.released) {
+        booking.status == BookingStatus.rejected ||
+        booking.status == BookingStatus.expired ||
+        booking.status == BookingStatus.released ||
+        booking.status == BookingStatus.completed) {
       return false;
     }
     final start = slots.indexOf(booking.timeSlot!);

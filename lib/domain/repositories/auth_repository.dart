@@ -7,5 +7,22 @@ import '../models/models.dart';
 abstract interface class AuthRepository {
   Future<User> login(String email, String password);
 
-  Future<User> register(String name, String email, String password);
+  Future<User> register(
+    String name,
+    String email,
+    String password, {
+    required String location,
+    required List<String> styles,
+  });
+
+  Future<User> updateProfile(User user);
+
+  Future<User> readCurrentProfile();
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  Future<void> logout();
 }

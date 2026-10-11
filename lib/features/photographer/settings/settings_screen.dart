@@ -6,12 +6,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
-import 'settings_provider.dart';
 import 'widgets/change_password_dialog.dart';
 import 'widgets/settings_action_tile.dart';
 import 'widgets/settings_group.dart';
 import 'widgets/settings_profile_header.dart';
-import 'widgets/settings_toggle_tile.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -25,14 +23,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final name = TextEditingController();
   final phone = TextEditingController();
   final birthday = TextEditingController();
-  final address = TextEditingController();
   String? city;
   String? gender;
   bool initialized = false;
+  bool profileReadStarted = false;
   bool saving = false;
-  bool twoFactorEnabled = true;
-  bool twoFactorInitialized = false;
-  bool updatingTwoFactor = false;
   int tab = 0;
 
   @override
@@ -40,7 +35,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     name.dispose();
     phone.dispose();
     birthday.dispose();
-    address.dispose();
     super.dispose();
   }
 
@@ -54,19 +48,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       birthday: birthday.text.trim(),
       city: city ?? '',
       gender: gender ?? '',
-      addressDetail: address.text.trim(),
+      addressDetail: user.addressDetail,
     );
-    final profile = ref.read(myPhotographerProvider);
     setState(() => saving = true);
     try {
-      if (profile != null) {
-        await ref
-            .read(photographersProvider.notifier)
-            .update(profile.copyWith(name: updated.name));
-      }
-      await ref.read(settingsRepositoryProvider).updateProfile(updated);
+      final saved = await ref
+          .read(authRepositoryProvider)
+          .updateProfile(updated);
       if (!mounted) return;
-      ref.read(authUserProvider.notifier).setUser(updated);
+      ref.read(authUserProvider.notifier).setUser(saved);
+      ref.invalidate(myPhotographerProvider);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã lưu thông tin cá nhân')));
@@ -81,19 +72,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _changePassword(User user) async {
+  Future<void> _changePassword() async {
     final messenger = ScaffoldMessenger.of(context);
     await showDialog<void>(
       context: context,
       builder: (context) => ChangePasswordDialog(
         onSubmit: (current, next) async {
           await ref
-              .read(settingsRepositoryProvider)
-              .changePassword(
-                userId: user.id,
-                currentPassword: current,
-                newPassword: next,
-              );
+              .read(authRepositoryProvider)
+              .changePassword(currentPassword: current, newPassword: next);
           if (mounted) {
             messenger.showSnackBar(
               const SnackBar(content: Text('Đã đổi mật khẩu')),
@@ -177,9 +164,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: SizedBox(
                         height: 40,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(dialogCtx);
-                            ref.read(authUserProvider.notifier).setUser(null);
+                            try {
+                              await ref
+                                  .read(authUserProvider.notifier)
+                                  .logout();
+                            } catch (error) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Đã đăng xuất trên thiết bị này, nhưng máy chủ chưa thể thu hồi phiên: $error',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                            if (!mounted) return;
                             context.go('/login');
                           },
                           style: ElevatedButton.styleFrom(
@@ -208,76 +210,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> _setTwoFactor(User user, bool enabled) async {
-    if (updatingTwoFactor) return;
-    setState(() => updatingTwoFactor = true);
-    try {
-      final result = await ref
-          .read(settingsRepositoryProvider)
-          .setTwoFactor(user.id, enabled);
-      if (!mounted) return;
-      setState(() => twoFactorEnabled = result);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result ? 'Đã bật xác thực hai bước' : 'Đã tắt xác thực hai bước',
-          ),
-        ),
-      );
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Không thể cập nhật xác thực hai bước: $error'),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => updatingTwoFactor = false);
-    }
-  }
-
-  Future<void> _signOutOtherDevices(User user) async {
-    try {
-      await ref.read(settingsRepositoryProvider).signOutOtherDevices(user.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã đăng xuất khỏi iPad và trình duyệt khác'),
-          ),
-        );
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể đăng xuất thiết bị khác: $error')),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateNotification(String key, bool enabled) async {
-    try {
-      await ref.read(notificationSettingsProvider.notifier).set(key, enabled);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã cập nhật thông báo')));
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Không thể cập nhật, vui lòng thử lại: $error'),
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authUserProvider);
+    if (user != null && !profileReadStarted) {
+      profileReadStarted = true;
+      Future.microtask(() async {
+        try {
+          final saved = await ref
+              .read(authRepositoryProvider)
+              .readCurrentProfile();
+          if (!context.mounted) return;
+          ref.read(authUserProvider.notifier).setUser(saved);
+          setState(() => initialized = false);
+        } catch (error) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Không tải được hồ sơ mới nhất: $error')),
+          );
+        }
+      });
+    }
     if (user == null) {
       return const Scaffold(body: Center(child: Text('Vui lòng đăng nhập')));
     }
@@ -285,17 +238,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       name.text = user.name;
       phone.text = user.phone;
       birthday.text = user.birthday;
-      address.text = user.addressDetail;
       city = user.city.isEmpty ? null : user.city;
       gender = user.gender.isEmpty ? null : user.gender;
       initialized = true;
     }
-    if (!twoFactorInitialized) {
-      twoFactorEnabled =
-          ref.read(settingsRepositoryProvider).cachedTwoFactor(user.id) ?? true;
-      twoFactorInitialized = true;
-    }
-
     final tabSubtitle = switch (tab) {
       0 => 'Thông tin cá nhân và quản lý hồ sơ hiển thị với khách hàng',
       1 => 'Quản lý thông tin đăng nhập, bảo mật và phiên hoạt động',
@@ -399,28 +345,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Compatibility texts for test suite expectations
-        const SizedBox(
-          width: 0,
-          height: 0,
-          child: Opacity(
-            opacity: 0,
-            child: Column(
-              children: [Text('Hồ sơ cá nhân'), Text('Đổi ảnh đại diện')],
-            ),
-          ),
-        ),
-
         // 1. Creator Identity Card
         SettingsProfileHeader(
           name: user.name,
           email: user.email,
           avatarUrl: ref.watch(myPhotographerProvider)?.avatar,
-          onChangeAvatar: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tính năng đổi ảnh đại diện sẽ sớm khả dụng'),
-            ),
-          ),
         ),
         const SizedBox(height: 18),
 
@@ -776,65 +705,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: Color(0xFFF0F0F2),
                   ),
 
-                  // Địa chỉ chi tiết
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Địa chỉ chi tiết',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF636466),
-                              ),
-                            ),
-                            ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: address,
-                              builder: (context, val, _) => Text(
-                                '${val.text.length}/120',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF636466),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        TextFormField(
-                          controller: address,
-                          maxLength: 120,
-                          maxLines: 2,
-                          buildCounter: (
-                            _, {
-                            required currentLength,
-                            required isFocused,
-                            maxLength,
-                          }) => null,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF1A1C1D),
-                            height: 1.35,
-                          ),
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(vertical: 4),
-                            border: InputBorder.none,
-                            hintText: 'Nhập địa chỉ chi tiết...',
-                            hintStyle: TextStyle(
-                              color: Color(0xFFA1A1AA),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.all(14),
+                    child: Text(
+                      'Backend hiện chưa hỗ trợ lưu địa chỉ chi tiết. '
+                      'Hồ sơ hỗ trợ họ tên, số điện thoại, ngày sinh, giới tính '
+                      'và khu vực phục vụ.',
+                      style: TextStyle(
+                        color: Color(0xFF636466),
+                        fontSize: 12,
+                        height: 1.45,
+                      ),
                     ),
                   ),
 
@@ -896,38 +777,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.mail_outline_rounded,
             title: 'Email đăng nhập',
             subtitle: user.email,
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: 13,
-                    color: Color(0xFF16A34A),
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    'Đã xác thực',
-                    style: TextStyle(
-                      color: Color(0xFF16A34A),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ),
+          SettingsActionTile(
+            icon: Icons.mark_email_read_outlined,
+            title: 'Xác minh email',
+            subtitle: 'Nhận và nhập mã OTP cho email tài khoản',
+            onTap: () => context.push('/photographer_home/email-verification'),
           ),
           SettingsActionTile(
             icon: Icons.lock_outline_rounded,
             title: 'Đổi mật khẩu',
             subtitle: 'Mật khẩu mới cần ít nhất 8 ký tự',
-            onTap: () => _changePassword(user),
+            onTap: _changePassword,
           ),
           SettingsActionTile(
             icon: Icons.badge_outlined,
@@ -958,15 +819,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       SettingsGroup(
         title: 'Bảo mật',
         children: [
-          SettingsToggleTile(
+          const _BackendCapabilityNote(
             icon: Icons.shield_outlined,
-            title: 'Xác thực hai bước (2FA)',
-            subtitle: 'Bảo vệ tài khoản bằng mã xác thực khi đăng nhập',
-            value: twoFactorEnabled,
-            busy: updatingTwoFactor,
-            onChanged: updatingTwoFactor
-                ? null
-                : (value) => _setTwoFactor(user, value),
+            text: 'Backend hiện chưa cung cấp API quản lý xác thực hai bước.',
           ),
         ],
       ),
@@ -978,8 +833,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           SettingsActionTile(
             icon: Icons.smartphone_rounded,
-            title: 'Thiết bị này',
-            subtitle: 'iPhone 15 Pro · Hà Nội, VN · Đang hoạt động',
+            title: 'Phiên hiện tại',
+            subtitle: 'Phiên đăng nhập trên thiết bị này',
             trailing: const Text(
               'Hiện tại',
               style: TextStyle(
@@ -989,11 +844,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          SettingsActionTile(
+          const _BackendCapabilityNote(
             icon: Icons.devices_outlined,
-            title: 'Đăng xuất thiết bị khác',
-            subtitle: 'Hủy phiên đăng nhập trên các thiết bị khác',
-            onTap: () => _signOutOtherDevices(user),
+            text: 'Backend hiện chưa hỗ trợ xem hoặc thu hồi các phiên trên thiết bị khác.',
           ),
           SettingsActionTile(
             icon: Icons.logout_rounded,
@@ -1008,57 +861,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   );
 
   Widget _notifications() {
-    final values = ref.watch(notificationSettingsProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 1. Hoạt động
-        SettingsGroup(
-          title: 'Hoạt động',
-          children: [
-            SettingsToggleTile(
-              icon: Icons.calendar_month_outlined,
-              title: 'Cập nhật lịch đặt',
-              subtitle:
-                  'Khi lịch chụp được xác nhận, thay đổi hoặc cần thanh toán',
-              value: values['bookingUpdates'] ?? false,
-              onChanged: (value) =>
-                  _updateNotification('bookingUpdates', value),
-            ),
-            SettingsToggleTile(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: 'Tin nhắn mới',
-              subtitle: 'Khi có khách hàng gửi tin nhắn trao đổi mới',
-              value: values['messages'] ?? false,
-              onChanged: (value) => _updateNotification('messages', value),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-
-        // 2. Ưu đãi & tổng hợp
-        SettingsGroup(
-          title: 'Ưu đãi & tổng hợp',
-          children: [
-            SettingsToggleTile(
-              icon: Icons.local_offer_outlined,
-              title: 'Ưu đãi & khuyến mãi',
-              subtitle: 'Mã giảm giá và chương trình dành cho creator',
-              value: values['promotions'] ?? false,
-              onChanged: (value) => _updateNotification('promotions', value),
-            ),
-            SettingsToggleTile(
-              icon: Icons.mark_email_read_outlined,
-              title: 'Email tổng hợp hằng tuần',
-              subtitle: 'Bản tóm tắt hiệu quả công việc và doanh thu tuần',
-              value: values['emailDigest'] ?? false,
-              onChanged: (value) => _updateNotification('emailDigest', value),
-            ),
-          ],
-        ),
-      ],
+    return const _BackendCapabilityNote(
+      icon: Icons.notifications_outlined,
+      text: 'Backend hiện chưa có API đọc hoặc cập nhật tùy chọn thông báo. Các tùy chọn mock đã được tắt để tránh hiển thị trạng thái chưa lưu.',
     );
   }
+}
+
+class _BackendCapabilityNote extends StatelessWidget {
+  const _BackendCapabilityNote({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xFFE5E6E8)),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFF636466)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Color(0xFF636466), height: 1.45),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _SettingsTabs extends StatelessWidget {

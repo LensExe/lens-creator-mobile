@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lens_creator_mobile/core/network/auth_session_store.dart';
 import 'package:lens_creator_mobile/data/mock_database.dart';
+import 'package:lens_creator_mobile/features/auth/data/mock_auth_repository.dart';
 import 'package:lens_creator_mobile/features/photographer/settings/settings_screen.dart';
+import 'package:lens_creator_mobile/providers/data_providers.dart';
 
 void main() {
   setUp(() {
@@ -22,12 +25,23 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SettingsScreen())),
+      ProviderScope(
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(
+            MockDatabase.photographerUser,
+          ),
+          authRepositoryProvider.overrideWithValue(MockAuthRepository()),
+          myPhotographerProvider.overrideWithValue(
+            MockDatabase.photographers.singleWhere((item) => item.id == 'me'),
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hồ sơ cá nhân'), findsOneWidget);
-    expect(find.text('Đổi ảnh đại diện'), findsOneWidget);
+    expect(find.text('Hồ sơ công khai'), findsOneWidget);
+    expect(find.byTooltip('Đổi ảnh đại diện'), findsNothing);
     expect(find.text('Thông tin cá nhân'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -41,10 +55,12 @@ void main() {
 
     await tester.tap(find.text('Thông báo').last);
     await tester.pumpAndSettle();
-    expect(find.text('Hoạt động'), findsOneWidget);
-    expect(find.text('Ưu đãi & tổng hợp'), findsOneWidget);
-    expect(find.text('Cập nhật lịch đặt'), findsOneWidget);
-    expect(find.text('Email tổng hợp hằng tuần'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Backend hiện chưa có API đọc hoặc cập nhật tùy chọn thông báo',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

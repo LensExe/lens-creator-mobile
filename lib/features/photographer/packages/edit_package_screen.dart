@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/models/models.dart';
 import '../../../providers/data_providers.dart';
+import 'booking_plan_repository.dart';
 import 'widgets/package_editor_actions.dart';
 import 'widgets/package_editor_field.dart';
 
@@ -25,8 +26,10 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
   final description = TextEditingController();
   final price = TextEditingController();
   final photoCount = TextEditingController();
+  final retouchedPhotoCount = TextEditingController();
   final duration = TextEditingController();
-  final deliveryDays = TextEditingController();
+  final features = TextEditingController();
+  bool isActive = true;
   bool initialized = false;
   bool saving = false;
 
@@ -42,8 +45,9 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       description,
       price,
       photoCount,
+      retouchedPhotoCount,
       duration,
-      deliveryDays,
+      features,
     ]) {
       controller.dispose();
     }
@@ -66,33 +70,32 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
     return null;
   }
 
-  Future<void> _save(Photographer profile) async {
+  Future<void> _save(PhotographerPackage? current) async {
     if (!formKey.currentState!.validate()) return;
     final hours = double.parse(duration.text.trim().replaceAll(',', '.'));
     final package = PhotographerPackage(
-      id: widget.id == 'new'
-          ? 'pkg-${DateTime.now().microsecondsSinceEpoch}'
-          : widget.id,
+      id: current?.id ?? '',
       name: name.text.trim(),
       description: description.text.trim(),
       price: int.parse(_digits(price.text)),
       photoCount: int.parse(photoCount.text.trim()),
+      retouchedPhotoCount: int.parse(retouchedPhotoCount.text.trim()),
       durationHours: hours,
       duration: '${hours.toString().replaceAll('.0', '')} giờ',
-      deliveryDays: int.parse(deliveryDays.text.trim()),
+      features: features.text
+          .split('\n')
+          .map((feature) => feature.trim())
+          .where((feature) => feature.isNotEmpty)
+          .toList(),
+      isActive: isActive,
     );
-    final packages = [...profile.packages];
-    final index = packages.indexWhere((item) => item.id == package.id);
-    if (index == -1) {
-      packages.add(package);
-    } else {
-      packages[index] = package;
-    }
     setState(() => saving = true);
     try {
-      await ref
-          .read(photographersProvider.notifier)
-          .update(profile.copyWith(packages: packages));
+      if (current == null) {
+        await ref.read(bookingPlansProvider.notifier).create(package);
+      } else {
+        await ref.read(bookingPlansProvider.notifier).updatePlan(package);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Đã lưu gói dịch vụ')));
@@ -108,19 +111,13 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
     }
   }
 
-  Future<void> _delete(Photographer profile) async {
-    if (profile.packages.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cần ít nhất một gói dịch vụ')),
-      );
-      return;
-    }
+  Future<void> _delete(PhotographerPackage package) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xoá gói dịch vụ?'),
         content: const Text(
-          'Các lịch đã đặt vẫn giữ điều khoản gói tại thời điểm đặt.',
+          'Backend chỉ cho xoá gói chưa có booking. Gói đã có booking cần được tắt trong phần cập nhật.',
         ),
         actions: [
           TextButton(
@@ -137,15 +134,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
     if (confirmed != true || !mounted) return;
     try {
       setState(() => saving = true);
-      await ref
-          .read(photographersProvider.notifier)
-          .update(
-            profile.copyWith(
-              packages: profile.packages
-                  .where((item) => item.id != widget.id)
-                  .toList(),
-            ),
-          );
+      await ref.read(bookingPlansProvider.notifier).delete(package.id);
       if (mounted) context.pop();
     } catch (error) {
       if (mounted) {
@@ -160,17 +149,28 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(myPhotographerProvider);
-    if (profile == null) {
+    final plansState = ref.watch(bookingPlansProvider);
+    if (ref.watch(authUserProvider) == null) {
       return const Scaffold(body: Center(child: Text('Vui lòng đăng nhập')));
     }
-    PhotographerPackage? current;
-    for (final package in profile.packages) {
-      if (package.id == widget.id) {
-        current = package;
-        break;
-      }
+    if (plansState.isLoading && widget.id != 'new') {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    if (plansState.hasError) {
+      return Scaffold(
+        body: Center(
+          child: TextButton(
+            onPressed: () => ref.invalidate(bookingPlansProvider),
+            child: Text(
+              'Không tải được gói chụp. Thử lại: ${plansState.error}',
+            ),
+          ),
+        ),
+      );
+    }
+    final current = widget.id == 'new'
+        ? null
+        : plansState.value?.where((item) => item.id == widget.id).firstOrNull;
     if (widget.id != 'new' && current == null) {
       return const Scaffold(
         body: Center(child: Text('Không tìm thấy gói dịch vụ')),
@@ -181,8 +181,10 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       description.text = current?.description ?? '';
       price.text = _formatPrice(current?.price ?? 200000);
       photoCount.text = '${current?.photoCount ?? 20}';
+      retouchedPhotoCount.text = '${current?.retouchedPhotoCount ?? 0}';
       duration.text = '${current?.durationHours ?? 1}';
-      deliveryDays.text = '${current?.deliveryDays ?? 7}';
+      features.text = current?.features.join('\n') ?? '';
+      isActive = current?.isActive ?? true;
       initialized = true;
     }
     return Scaffold(
@@ -208,7 +210,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
           if (current != null)
             IconButton(
               tooltip: 'Xoá gói',
-              onPressed: saving ? null : () => _delete(profile),
+              onPressed: saving ? null : () => _delete(current),
               color: AppColors.destructive,
               icon: const Icon(Icons.delete_outline_rounded, size: 22),
             ),
@@ -216,7 +218,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
       ),
       bottomNavigationBar: PackageEditorActions(
         onCancel: () => context.pop(),
-        onSave: () => _save(profile),
+        onSave: () => _save(current),
         saveLabel: current == null ? 'Tạo gói chụp' : 'Lưu gói chụp',
         busy: saving,
       ),
@@ -267,8 +269,6 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                _PackagePreviewBanner(coverUrl: profile.cover),
-                const SizedBox(height: 16),
                 _PackageEditorSection(
                   icon: Icons.sell_outlined,
                   title: 'Giá và cam kết dịch vụ',
@@ -280,7 +280,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                       requiredField: true,
                       suffixText: '₫',
                       hintText: '0',
-                      helperText: 'Tối thiểu 10.000 ₫',
+                      helperText: 'Nhập giá gói bằng VND',
                       keyboardType: TextInputType.number,
                       inputFormatters: [_VietnamesePriceInputFormatter()],
                       textStyle: const TextStyle(
@@ -291,8 +291,8 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                       enabled: !saving,
                       validator: (value) => _integer(
                         value,
-                        10000,
-                        1000000000,
+                        1,
+                        9000000000000,
                         'Giá',
                         grouped: true,
                       ),
@@ -305,11 +305,11 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                             controller: photoCount,
                             label: 'Ảnh bàn giao',
                             suffixText: 'ảnh',
-                            helperText: 'Từ 1 đến 500 ảnh',
+                            helperText: 'Từ 0 đến 10.000 ảnh',
                             keyboardType: TextInputType.number,
                             enabled: !saving,
                             validator: (value) =>
-                                _integer(value, 1, 500, 'Số ảnh'),
+                                _integer(value, 0, 10000, 'Số ảnh'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -318,7 +318,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                             controller: duration,
                             label: 'Thời lượng',
                             suffixText: 'giờ',
-                            helperText: 'Từ 0,5 đến 12 giờ',
+                            helperText: 'Từ 0,25 đến 24 giờ',
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -328,9 +328,9 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                                 (value ?? '').replaceAll(',', '.'),
                               );
                               return parsed == null ||
-                                      parsed < 0.5 ||
-                                      parsed > 12
-                                  ? 'Từ 0,5 đến 12 giờ'
+                                      parsed < 0.25 ||
+                                      parsed > 24
+                                  ? 'Từ 0,25 đến 24 giờ'
                                   : null;
                             },
                           ),
@@ -338,25 +338,55 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                       ],
                     ),
                     PackageEditorField(
-                      controller: deliveryDays,
-                      label: 'Thời gian giao ảnh',
-                      suffixText: 'ngày',
-                      helperText:
-                          'Cam kết trả ảnh hoàn thiện cho khách (1–60 ngày)',
+                      controller: retouchedPhotoCount,
+                      label: 'Ảnh chỉnh sửa',
+                      suffixText: 'ảnh',
+                      helperText: 'Từ 0 đến 10.000 ảnh',
                       keyboardType: TextInputType.number,
                       enabled: !saving,
-                      validator: (value) => _integer(value, 1, 60, 'Số ngày'),
+                      validator: (value) => _integer(
+                        value,
+                        0,
+                        int.tryParse(photoCount.text) ?? 10000,
+                        'Số ảnh chỉnh sửa',
+                      ),
+                    ),
+                    PackageEditorField(
+                      controller: features,
+                      label: 'Tính năng đi kèm',
+                      hintText: 'Mỗi dòng là một tính năng',
+                      maxLines: 4,
+                      enabled: !saving,
+                      validator: (value) =>
+                          (value ?? '')
+                                  .split('\n')
+                                  .where((line) => line.trim().isNotEmpty)
+                                  .length >
+                              50
+                          ? 'Tối đa 50 tính năng'
+                          : null,
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
-                const _EscrowNotice(),
+                if (current != null)
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Gói đang hoạt động'),
+                    subtitle: const Text(
+                      'Gói tắt sẽ không xuất hiện trong lựa chọn booking mới.',
+                    ),
+                    value: isActive,
+                    onChanged: saving
+                        ? null
+                        : (value) => setState(() => isActive = value),
+                  ),
                 if (current != null) ...[
                   const SizedBox(height: 14),
                   Column(
                     children: [
                       TextButton.icon(
-                        onPressed: saving ? null : () => _delete(profile),
+                        onPressed: saving ? null : () => _delete(current),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.destructive,
                           backgroundColor: const Color(0xFFFFDAD6)
@@ -375,7 +405,7 @@ class _EditPackageScreenState extends ConsumerState<EditPackageScreen> {
                       ),
                       const SizedBox(height: 3),
                       const Text(
-                        'Cần ít nhất 1 gói dịch vụ hoạt động',
+                        'Gói đã có booking chỉ được tắt, không thể xoá.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.steel, fontSize: 10),
                       ),
@@ -504,133 +534,6 @@ class _PackageEditorSection extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         ...children,
-      ],
-    ),
-  );
-}
-
-class _PackagePreviewBanner extends StatelessWidget {
-  const _PackagePreviewBanner({required this.coverUrl});
-
-  final String coverUrl;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(16),
-    child: SizedBox(
-      height: 112,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            coverUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF3F3F46), Color(0xFF18181B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Icon(
-                Icons.photo_camera_outlined,
-                color: AppColors.snow,
-                size: 28,
-              ),
-            ),
-          ),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0xB3000000)],
-              ),
-            ),
-          ),
-          const Positioned(
-            left: 16,
-            bottom: 14,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.photo_camera_outlined,
-                  color: Colors.white,
-                  size: 17,
-                ),
-                SizedBox(width: 7),
-                Text(
-                  'LENS CREATOR STUDIO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _EscrowNotice extends StatelessWidget {
-  const _EscrowNotice();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: const Color(0xFFE5E1E4).withValues(alpha: 0.55),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 32,
-          height: 32,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.snow,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.verified_user_outlined,
-              color: AppColors.ember,
-              size: 18,
-            ),
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Đảm bảo thanh toán LENS Escrow',
-                style: TextStyle(
-                  color: AppColors.ink,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 3),
-              Text(
-                'Tiền cọc được giữ đến khi khách nghiệm thu ảnh theo điều khoản đặt lịch.',
-                style: TextStyle(
-                  color: AppColors.steel,
-                  fontSize: 11,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     ),
   );

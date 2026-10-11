@@ -80,8 +80,21 @@ class MoreTabScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 20),
               OutlinedButton.icon(
-                onPressed: () {
-                  ref.read(authUserProvider.notifier).setUser(null);
+                onPressed: () async {
+                  try {
+                    await ref.read(authUserProvider.notifier).logout();
+                  } catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Đã đăng xuất trên thiết bị này, nhưng máy chủ chưa thể thu hồi phiên: $error',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                  if (!context.mounted) return;
                   context.go('/login');
                 },
                 icon: const Icon(Icons.logout_rounded),

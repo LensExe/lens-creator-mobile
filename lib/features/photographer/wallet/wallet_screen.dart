@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -9,9 +10,6 @@ import '../../../core/widgets/creator_loading_state.dart';
 import '../../../core/widgets/creator_list_row.dart';
 import '../../../core/widgets/creator_section_header.dart';
 import '../../../core/widgets/creator_summary_strip.dart';
-import '../../../domain/booking_rules.dart';
-import '../../../domain/models/models.dart';
-import '../../../providers/data_providers.dart';
 import '../bookings/widgets/studio_booking_card.dart';
 import 'wallet_entry.dart';
 import 'wallet_provider.dart';
@@ -24,94 +22,176 @@ class WalletScreen extends ConsumerWidget {
     WidgetRef ref,
     int balance,
   ) async {
-    final controller = TextEditingController();
-    final amount = await showDialog<int>(
+    final amountController = TextEditingController();
+    final reasonController = TextEditingController();
+    final bankCodeController = TextEditingController();
+    final accountNumberController = TextEditingController();
+    final accountNameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final request = await showDialog<WalletWithdrawalRequest>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Rút tiền về ngân hàng'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Số dư khả dụng: ${formatDong(balance)}'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setDialogState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Số tiền muốn rút',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Tạo yêu cầu rút tiền'),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Số dư khả dụng từ Backend: ${formatDong(balance)}'),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Số tiền (tối thiểu 10.000 ₫)',
+                      ),
+                      validator: (value) {
+                        final amount = int.tryParse(value ?? '');
+                        if (amount == null || amount < 10000) {
+                          return 'Số tiền tối thiểu là 10.000 ₫';
+                        }
+                        if (amount > balance) return 'Vượt số dư khả dụng';
+                        return null;
+                      },
+                    ),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final share in [0.25, 0.5, 1.0])
+                          ActionChip(
+                            label: Text(
+                              share == 1
+                                  ? 'Rút hết'
+                                  : '${(share * 100).round()}%',
+                            ),
+                            onPressed: balance < 10000
+                                ? null
+                                : () => setDialogState(() {
+                                    amountController.text =
+                                        '${(balance * share).floor()}';
+                                  }),
+                          ),
+                      ],
+                    ),
+                    TextFormField(
+                      controller: reasonController,
+                      maxLength: 1000,
+                      decoration: const InputDecoration(labelText: 'Lý do rút'),
+                      validator: (value) => (value ?? '').trim().isEmpty
+                          ? 'Nhập lý do rút tiền'
+                          : null,
+                    ),
+                    TextFormField(
+                      controller: bankCodeController,
+                      maxLength: 32,
+                      decoration: const InputDecoration(
+                        labelText: 'Mã BIN hoặc mã ngân hàng',
+                      ),
+                      validator: (value) => (value ?? '').trim().length < 2
+                          ? 'Mã ngân hàng tối thiểu 2 ký tự'
+                          : null,
+                    ),
+                    TextFormField(
+                      controller: accountNumberController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Số tài khoản',
+                      ),
+                      validator: (value) =>
+                          (value ?? '').length < 4 || (value ?? '').length > 34
+                          ? 'Số tài khoản phải có 4–34 chữ số'
+                          : null,
+                    ),
+                    TextFormField(
+                      controller: accountNameController,
+                      maxLength: 120,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên chủ tài khoản',
+                      ),
+                      validator: (value) => (value ?? '').trim().length < 2
+                          ? 'Tên chủ tài khoản tối thiểu 2 ký tự'
+                          : null,
+                    ),
+                  ],
                 ),
               ),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final share in [0.25, 0.5, 1.0])
-                    ActionChip(
-                      label: Text(
-                        share == 1 ? 'Rút hết' : '${(share * 100).round()}%',
-                      ),
-                      onPressed: () => setDialogState(
-                        () => controller.text =
-                            '${((balance * share) / 1000).floor() * 1000}',
-                      ),
-                    ),
-                ],
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Huỷ'),
             ),
             FilledButton(
-              onPressed:
-                  (int.tryParse(controller.text) ?? 0) <= 0 ||
-                      (int.tryParse(controller.text) ?? 0) > balance
-                  ? null
-                  : () => Navigator.pop(context, int.parse(controller.text)),
-              child: const Text('Xác nhận rút'),
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(
+                  dialogContext,
+                  WalletWithdrawalRequest(
+                    amount: int.parse(amountController.text),
+                    reason: reasonController.text.trim(),
+                    bankCode: bankCodeController.text.trim(),
+                    accountNumber: accountNumberController.text.trim(),
+                    accountName: accountNameController.text.trim(),
+                    idempotencyKey:
+                        'lens-creator:withdraw:${DateTime.now().microsecondsSinceEpoch}',
+                  ),
+                );
+              },
+              child: const Text('Gửi yêu cầu'),
             ),
           ],
         ),
       ),
     );
-    controller.dispose();
-    if (amount == null || !context.mounted) return;
+    amountController.dispose();
+    reasonController.dispose();
+    bankCodeController.dispose();
+    accountNumberController.dispose();
+    accountNameController.dispose();
+    if (request == null || !context.mounted) return;
     try {
-      await ref.read(walletProvider.notifier).withdraw(amount);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã gửi yêu cầu rút ${formatDong(amount)}')),
-        );
-      }
+      await ref.read(walletProvider.notifier).withdraw(request);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Backend đã nhận yêu cầu rút và sẽ xử lý theo trạng thái của request.',
+          ),
+        ),
+      );
     } catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Không thể rút tiền: $error')));
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể gửi yêu cầu rút: $error')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entriesState = ref.watch(walletProvider);
+    final walletState = ref.watch(walletProvider);
     return Scaffold(
       backgroundColor: AppColors.mist,
       appBar: AppBar(title: const Text('Ví của tôi')),
-      body: entriesState.when(
+      body: walletState.when(
         loading: () =>
-            const CreatorLoadingState(label: 'Đang tải lịch sử giao dịch…'),
+            const CreatorLoadingState(label: 'Đang tải ví và sổ cái…'),
         error: (error, _) => CreatorEmptyState(
           icon: Icons.cloud_off_outlined,
-          title: 'Không thể tải lịch sử giao dịch',
-          description: 'Kiểm tra kết nối rồi thử tải lại.',
+          title: 'Không thể tải ví',
+          description: '$error',
           actionLabel: 'Thử lại',
           onAction: () => ref.invalidate(walletProvider),
         ),
-        data: (entries) => _walletContent(context, ref, entries),
+        data: (snapshot) => _walletContent(context, ref, snapshot),
       ),
     );
   }
@@ -119,31 +199,17 @@ class WalletScreen extends ConsumerWidget {
   Widget _walletContent(
     BuildContext context,
     WidgetRef ref,
-    List<WalletEntry> entries,
+    WalletSnapshot snapshot,
   ) {
-    final balance = entries.fold<int>(0, (sum, item) => sum + item.amount);
-    final bookings = ref.watch(myBookingsProvider);
-    final collaborations = ref.watch(myCollaborationsProvider);
-    final userId = ref.watch(authUserProvider)?.id;
-    final pending = [...bookings, ...collaborations]
-        .where((b) => b.status == BookingStatus.held)
-        .fold<int>(
-          0,
-          (sum, b) =>
-              sum + (userId == null ? 0 : BookingRules.payoutFor(b, userId)),
-        );
     final now = DateTime.now();
-    final received = entries
+    final availableIncrease = snapshot.entries
         .where(
           (entry) =>
               entry.amount > 0 &&
               entry.date.year == now.year &&
               entry.date.month == now.month,
         )
-        .fold<int>(0, (sum, item) => sum + item.amount);
-    final withdrawn = -entries
-        .where((entry) => entry.amount < 0)
-        .fold<int>(0, (sum, item) => sum + item.amount);
+        .fold<int>(0, (sum, entry) => sum + entry.amount);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
@@ -165,19 +231,24 @@ class WalletScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    formatDong(balance),
+                    formatDong(snapshot.balance),
                     style: const TextStyle(
                       color: AppColors.snow,
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Đang giữ: ${formatDong(snapshot.frozenBalance)}',
+                    style: const TextStyle(color: AppColors.pebble),
+                  ),
                   const SizedBox(height: 16),
                   FilledButton(
-                    onPressed: balance <= 0
+                    onPressed: snapshot.balance < 10000
                         ? null
-                        : () => _withdraw(context, ref, balance),
-                    child: const Text('Rút tiền về ngân hàng'),
+                        : () => _withdraw(context, ref, snapshot.balance),
+                    child: const Text('Tạo yêu cầu rút tiền'),
                   ),
                 ],
               ),
@@ -185,36 +256,45 @@ class WalletScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             CreatorSummaryStrip(
               items: [
-                CreatorSummaryItem('Chờ giải ngân', formatDong(pending)),
-                CreatorSummaryItem('Nhận tháng này', formatDong(received)),
-                CreatorSummaryItem('Đã rút', formatDong(withdrawn)),
+                CreatorSummaryItem(
+                  'Đang giữ',
+                  formatDong(snapshot.frozenBalance),
+                ),
+                CreatorSummaryItem(
+                  'Tăng khả dụng tháng này',
+                  formatDong(availableIncrease),
+                ),
+                CreatorSummaryItem(
+                  'Bản ghi sổ cái',
+                  '${snapshot.entries.length}',
+                ),
               ],
             ),
             const SizedBox(height: 28),
-            const CreatorSectionHeader(title: 'Lịch sử giao dịch'),
+            const CreatorSectionHeader(title: 'Sổ cái ví · VND'),
             const SizedBox(height: 6),
-            if (entries.isEmpty)
+            if (snapshot.entries.isEmpty)
               const CreatorEmptyState(
                 icon: Icons.receipt_long_outlined,
-                title: 'Chưa có giao dịch',
+                title: 'Chưa có biến động ví',
               )
             else
-              for (final entry in entries) ...[
+              for (final entry in snapshot.entries) ...[
                 CreatorListRow(
-                  icon: entry.amount >= 0
+                  icon: entry.amount + entry.frozenDelta >= 0
                       ? Icons.south_west_rounded
                       : Icons.north_east_rounded,
-                  title: entry.note,
-                  subtitle: DateFormat('dd/MM/yyyy HH:mm').format(entry.date),
-                  trailing: Text(
-                    '${entry.amount > 0 ? '+' : ''}${formatDong(entry.amount)}',
-                    style: TextStyle(
-                      color: entry.amount >= 0
-                          ? AppColors.success
-                          : AppColors.obsidian,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  title: entry.note.isEmpty ? entry.entryType : entry.note,
+                  subtitle:
+                      '${DateFormat('dd/MM/yyyy HH:mm').format(entry.date)}${entry.entryType.isEmpty ? '' : ' · ${entry.entryType}'}',
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('Khả dụng ${_signed(entry.amount)}'),
+                      if (entry.frozenDelta != 0)
+                        Text('Đang giữ ${_signed(entry.frozenDelta)}'),
+                    ],
                   ),
                 ),
                 const Divider(),
@@ -225,3 +305,5 @@ class WalletScreen extends ConsumerWidget {
     );
   }
 }
+
+String _signed(int value) => '${value > 0 ? '+' : ''}${formatDong(value)}';

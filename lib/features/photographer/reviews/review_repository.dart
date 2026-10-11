@@ -9,4 +9,6 @@ abstract interface class ReviewRepository {
     required int total,
     required int fiveStarPercent,
   });
+
+  Future<void> reply(String feedbackId, String reply);
 }

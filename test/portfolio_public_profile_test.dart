@@ -5,6 +5,8 @@ import 'package:lens_creator_mobile/domain/models/models.dart';
 import 'package:lens_creator_mobile/domain/models/review.dart';
 import 'package:lens_creator_mobile/features/photographer/portfolio/portfolio_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/portfolio/public_profile_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/portfolio/api_portfolio_repository.dart';
+import 'package:lens_creator_mobile/features/photographer/packages/booking_plan_repository.dart';
 import 'package:lens_creator_mobile/features/photographer/reviews/review_provider.dart';
 import 'package:lens_creator_mobile/providers/data_providers.dart';
 
@@ -31,7 +33,7 @@ void main() {
         description: 'Dành cho ảnh chân dung cá nhân.',
         photoCount: 18,
         durationHours: 1.5,
-        deliveryDays: 6,
+        retouchedPhotoCount: 12,
       ),
     ],
   );
@@ -48,6 +50,31 @@ void main() {
     ),
   ];
 
+  const portfolio = PortfolioWorkspace(
+    albums: [
+      PortfolioAlbum(
+        id: 'album-uuid',
+        name: 'Portraits',
+        itemIds: ['media-uuid'],
+      ),
+    ],
+    assets: [
+      PortfolioAsset(
+        portfolioId: 'album-uuid',
+        portfolioItemId: 'media-uuid',
+        mediaId: 'media-uuid',
+        position: 0,
+        url: 'https://cdn.example.test/portrait.jpg',
+      ),
+    ],
+  );
+
+  final baseOverrides = [
+    myPhotographerProvider.overrideWith((ref) => profile),
+    photographerPortfolioProvider.overrideWith((ref) async => portfolio),
+    bookingPlansProvider.overrideWith(_PortfolioPlansNotifier.new),
+  ];
+
   void setViewport(WidgetTester tester, Size size) {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
@@ -62,7 +89,7 @@ void main() {
       setViewport(tester, size);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [myPhotographerProvider.overrideWith((ref) => profile)],
+          overrides: baseOverrides,
           child: const MaterialApp(home: PortfolioScreen()),
         ),
       );
@@ -93,28 +120,20 @@ void main() {
     }
   });
 
-  testWidgets('portfolio add action uses the existing HTTPS URL editor', (
+  testWidgets('portfolio add action is connected to the upload flow', (
     tester,
   ) async {
     setViewport(tester, const Size(430, 932));
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [myPhotographerProvider.overrideWith((ref) => profile)],
+        overrides: baseOverrides,
         child: const MaterialApp(home: PortfolioScreen()),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Thêm ảnh'));
-    await tester.pumpAndSettle();
-    expect(find.text('Đường dẫn ảnh HTTPS'), findsOneWidget);
-    await tester.enterText(
-      find.byType(TextField).last,
-      'https://example.com/portrait.jpg',
-    );
-    await tester.tap(find.text('Thêm ảnh').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Chỉnh sửa hồ sơ'), findsOneWidget);
+    expect(find.text('Thêm ảnh vào portfolio'), findsOneWidget);
+    expect(find.text('Portraits · 1 tác phẩm'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -126,7 +145,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            myPhotographerProvider.overrideWith((ref) => profile),
+            ...baseOverrides,
             photographerReviewsProvider.overrideWith((ref) async => reviews),
           ],
           child: const MaterialApp(home: PublicProfileScreen()),
@@ -144,6 +163,7 @@ void main() {
       expect(find.text('Gói dịch vụ nhiếp ảnh'), findsOneWidget);
       expect(find.text('Gói Chân Dung'), findsOneWidget);
       expect(find.text('Dành cho ảnh chân dung cá nhân.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
       await tester.ensureVisible(find.text('Đánh giá').last);
       await tester.tap(find.text('Đánh giá').last);
@@ -157,4 +177,20 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     }
   });
+}
+
+class _PortfolioPlansNotifier extends BookingPlansNotifier {
+  @override
+  Future<List<PhotographerPackage>> build() async => [
+    PhotographerPackage(
+      id: 'plan-uuid',
+      name: 'Gói Chân Dung',
+      duration: '90 phút',
+      price: 245000,
+      description: 'Dành cho ảnh chân dung cá nhân.',
+      photoCount: 18,
+      durationHours: 1.5,
+      retouchedPhotoCount: 12,
+    ),
+  ];
 }

@@ -118,9 +118,17 @@ class PackageCardItem extends StatelessWidget {
                       label: '$hours giờ',
                     ),
                     _PackageFact(
-                      icon: Icons.local_shipping_outlined,
-                      label: 'Giao trong ${package.deliveryDays} ngày',
+                      icon: Icons.auto_awesome_outlined,
+                      label: '${package.retouchedPhotoCount} ảnh chỉnh sửa',
                     ),
+                    _PackageFact(
+                      icon: package.isActive
+                          ? Icons.check_circle_outline
+                          : Icons.pause_circle_outline,
+                      label: package.isActive ? 'Đang hoạt động' : 'Đã tắt',
+                    ),
+                    for (final feature in package.features)
+                      _PackageFact(icon: Icons.sell_outlined, label: feature),
                   ],
                 ),
               ],

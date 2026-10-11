@@ -17,8 +17,11 @@ class BookingRepositoryImpl implements BookingRepository {
       mockDataSource.createBooking(booking);
 
   @override
-  Future<void> updateBookingStatus(String id, BookingStatus status) =>
-      mockDataSource.updateBookingStatus(id, status);
+  Future<void> updateBookingStatus(
+    String id,
+    BookingStatus status, {
+    String? reason,
+  }) => mockDataSource.updateBookingStatus(id, status, reason: reason);
 
   @override
   Future<Booking> addDeliveryPhotos(String id, List<String> urls) =>

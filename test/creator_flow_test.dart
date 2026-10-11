@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lens_creator_mobile/core/network/auth_session_store.dart';
 import 'package:lens_creator_mobile/data/mock_api_service.dart';
 import 'package:lens_creator_mobile/data/mock_database.dart';
 import 'package:lens_creator_mobile/data/datasources/mock/mock_achievement_data_source.dart';
@@ -11,33 +12,45 @@ import 'package:lens_creator_mobile/domain/models/models.dart';
 import 'package:lens_creator_mobile/features/auth/data/mock_auth_repository.dart';
 import 'package:lens_creator_mobile/features/photographer/availability/work_schedule.dart';
 import 'package:lens_creator_mobile/features/photographer/availability/mock_availability_repository.dart';
-import 'package:lens_creator_mobile/features/photographer/assistant/assistant_rules.dart';
+import 'package:lens_creator_mobile/features/photographer/packages/booking_plan_repository.dart';
 import 'package:lens_creator_mobile/features/photographer/bookings/widgets/studio_booking_card.dart';
 import 'package:lens_creator_mobile/features/photographer/messages/conversation_provider.dart';
-import 'package:lens_creator_mobile/features/photographer/storage/storage_provider.dart';
 import 'package:lens_creator_mobile/features/photographer/wallet/mock_wallet_repository.dart';
 import 'package:lens_creator_mobile/features/photographer/portfolio/portfolio_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/portfolio/api_portfolio_repository.dart';
 import 'package:lens_creator_mobile/features/photographer/packages/edit_package_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/packages/widgets/package_editor_actions.dart';
-import 'package:lens_creator_mobile/features/photographer/bookings/delivery_gallery_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/reviews/review_provider.dart';
+import 'package:lens_creator_mobile/features/photographer/storage/storage_screen.dart';
+import 'package:lens_creator_mobile/features/photographer/storage/subscription_repository.dart';
+import 'package:lens_creator_mobile/features/photographer/wallet/wallet_entry.dart';
+import 'package:lens_creator_mobile/features/photographer/wallet/wallet_provider.dart';
 import 'package:lens_creator_mobile/main.dart';
 import 'package:lens_creator_mobile/providers/data_providers.dart';
 
 void main() {
-  test('only deposited pending bookings can be approved or declined', () {
+  test('only pending bookings can be accepted or rejected', () {
+    expect(
+      BookingRules.canTransition(BookingStatus.pending, BookingStatus.accepted),
+      isTrue,
+    );
+    expect(
+      BookingRules.canTransition(BookingStatus.pending, BookingStatus.rejected),
+      isTrue,
+    );
     expect(
       BookingRules.canTransition(
         BookingStatus.pending,
         BookingStatus.confirmed,
       ),
-      isTrue,
+      isFalse,
     );
     expect(
       BookingRules.canTransition(
         BookingStatus.pending,
         BookingStatus.cancelled,
       ),
-      isTrue,
+      isFalse,
     );
     expect(
       BookingRules.canTransition(BookingStatus.confirmed, BookingStatus.held),
@@ -235,27 +248,37 @@ void main() {
         'Người chụp mới',
         'new-creator@lens.vn',
         'secure123',
+        location: 'Hà Nội',
+        styles: const ['portrait'],
       );
       expect(registered.role, 'photographer');
       expect(registered.name, 'Người chụp mới');
       await expectLater(
-        auth.register('Khác', 'new-creator@lens.vn', 'secure123'),
+        auth.register(
+          'Khác',
+          'new-creator@lens.vn',
+          'secure123',
+          location: 'Hà Nội',
+          styles: const ['portrait'],
+        ),
         throwsStateError,
       );
     },
   );
 
   test(
-    'new creator achievement data does not invent performance history',
+    'isolated achievement mock does not fabricate performance history',
     () async {
       final source = MockAchievementDataSource();
       final seeded = await source.getAchievements('me');
-      expect(seeded.completedSessions, 27);
-      expect(seeded.badges, containsAll(['fast-reply', 'punctual', 'loyal']));
+      expect(seeded.totalBookings, 0);
+      expect(seeded.ranks, isEmpty);
+      expect(seeded.badges, isEmpty);
+      expect(seeded.earnedBadgeCodes, isEmpty);
 
       final newCreator = await source.getAchievements('new-creator-test');
-      expect(newCreator.completedSessions, 0);
-      expect(newCreator.fiveStarPct, 0);
+      expect(newCreator.totalBookings, 0);
+      expect(newCreator.averageRating, 0);
       expect(newCreator.badges, isEmpty);
     },
   );
@@ -348,82 +371,37 @@ void main() {
     },
   );
 
-  test('upgrading storage unlocks the over-quota demo gallery', () async {
-    MockDatabase.currentUser = MockDatabase.photographerUser;
-    final container = ProviderContainer();
-    addTearDown(() {
-      container.dispose();
-      MockDatabase.currentUser = null;
-    });
-    await container.read(asyncBookingsProvider.future);
-    StorageGallery gallery() => container
-        .read(storageGalleriesProvider)
-        .firstWhere((item) => item.booking.id == 'in-6');
-    expect(gallery().locked, isTrue);
-    expect(gallery().needsAttention, isTrue);
-    await container.read(storageTierProvider.notifier).choose(StorageTier.pro);
-    expect(gallery().locked, isFalse);
-    expect(gallery().daysLeft, greaterThan(300));
-  });
-
-  test('client complaint gets AI handoff and disables thread assistant', () {
-    MockDatabase.currentUser = MockDatabase.photographerUser;
-    final container = ProviderContainer();
-    addTearDown(() {
-      container.dispose();
-      MockDatabase.currentUser = null;
-    });
-    final notifier = container.read(conversationsProvider.notifier);
-    notifier.receiveFromClient('c5', 'Cho tôi hỏi giá gói cơ bản?');
-    var conversation = container
-        .read(conversationsProvider)
-        .firstWhere((item) => item.id == 'c5');
-    expect(conversation.messages.last.isAi, isTrue);
-    expect(conversation.aiEnabled, isTrue);
-    notifier.receiveFromClient('c5', 'Tôi muốn khiếu nại và hoàn tiền');
-    conversation = container
-        .read(conversationsProvider)
-        .firstWhere((item) => item.id == 'c5');
-    expect(conversation.messages.last.text, AssistantRules.handoffMessage);
-    expect(conversation.aiEnabled, isFalse);
-    final count = conversation.messages.length;
-    notifier.receiveFromClient('c5', 'Cần hỗ trợ thêm');
-    expect(
-      container
-          .read(conversationsProvider)
-          .firstWhere((item) => item.id == 'c5')
-          .messages
-          .length,
-      count + 1,
-    );
-  });
-
   test(
-    'booking can open a conversation even before the first message',
+    'messaging operations fail clearly when Backend has no chat API',
     () async {
       MockDatabase.currentUser = MockDatabase.photographerUser;
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(
+            MockDatabase.photographerUser,
+          ),
+        ],
+      );
       addTearDown(() {
         container.dispose();
         MockDatabase.currentUser = null;
       });
-
       final notifier = container.read(conversationsProvider.notifier);
-      final threadId = await notifier.openOrCreateForClient(
-        participantId: 'client-without-thread',
-        participantName: 'Khách mới',
-      );
-      final conversation = container
-          .read(conversationsProvider)
-          .singleWhere((item) => item.id == threadId);
-      expect(conversation.participantName, 'Khách mới');
-      expect(conversation.messages, isEmpty);
-      expect(
-        await notifier.openOrCreateForClient(
-          participantId: 'client-without-thread',
-          participantName: 'Khách mới',
+      expect(container.read(conversationsProvider), isEmpty);
+      await expectLater(notifier.refresh(), throwsStateError);
+      await expectLater(notifier.markRead('c5'), throwsStateError);
+      await expectLater(
+        notifier.openOrCreateForClient(
+          participantId: 'client',
+          participantName: 'Khách',
         ),
-        threadId,
+        throwsStateError,
+      );
+      await expectLater(notifier.toggleAi('c5', true), throwsStateError);
+      await expectLater(notifier.send('c5', 'test'), throwsStateError);
+      expect(
+        () => notifier.receiveFromClient('c5', 'sample'),
+        throwsStateError,
       );
     },
   );
@@ -467,9 +445,9 @@ void main() {
         ),
       );
       expect(find.text('Chờ xác nhận'), findsOneWidget);
-      expect(find.text('Đã cọc 135.000 ₫'), findsOneWidget);
+      expect(find.text('Mức cọc yêu cầu 135.000 ₫'), findsOneWidget);
       await tester.tap(find.text('Xác nhận'));
-      expect(decision, BookingStatus.confirmed);
+      expect(decision, BookingStatus.accepted);
       expect(tester.takeException(), isNull);
     },
   );
@@ -479,20 +457,47 @@ void main() {
   ) async {
     MockDatabase.currentUser = null;
     addTearDown(() => MockDatabase.currentUser = null);
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(null),
+          authRepositoryProvider.overrideWithValue(MockAuthRepository()),
+          myPhotographerProvider.overrideWithValue(
+            MockDatabase.photographers.singleWhere((item) => item.id == 'me'),
+          ),
+          incomingBookingsProvider.overrideWithValue(
+            AsyncData(
+              MockDatabase.bookings
+                  .where((booking) => booking.photographerId == 'me')
+                  .toList(),
+            ),
+          ),
+          myBookingsProvider.overrideWith(
+            (ref) => MockDatabase.bookings
+                .where((booking) => booking.photographerId == 'me')
+                .toList(),
+          ),
+          bookingPlansProvider.overrideWith(_DemoBookingPlansNotifier.new),
+          photographerPortfolioProvider.overrideWith(
+            (ref) async => const PortfolioWorkspace(albums: [], assets: []),
+          ),
+          photographerReviewsProvider.overrideWith((ref) async => []),
+          walletProvider.overrideWith(_EmptyWalletNotifier.new),
+        ],
+        child: const MyApp(),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('Điền tài khoản mẫu'), findsOneWidget);
-    await tester.tap(find.text('Điền tài khoản mẫu'));
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'nhiepanhgia@lens.vn',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'demo1234');
     await tester.tap(find.text('Đăng nhập'));
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(seconds: 2));
     expect(find.textContaining('Chào, Lý Gia Hân'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Lời mời liên kết'),
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Lời mời liên kết'), findsOneWidget);
+    expect(find.text('Yêu cầu đặt lịch'), findsOneWidget);
     await tester.tap(find.text('Gói chụp'));
     await tester.pumpAndSettle();
     expect(find.text('Gói cơ bản'), findsWidgets);
@@ -520,16 +525,87 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'creator signup collects application fields and waits for review',
+    (tester) async {
+      MockDatabase.currentUser = null;
+      addTearDown(() => MockDatabase.currentUser = null);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(MockAuthRepository()),
+          ],
+          child: const MyApp(),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(find.text('Chưa có tài khoản? Đăng ký'));
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextFormField).at(0), 'Nguyễn An');
+      await tester.enterText(find.byType(TextFormField).at(1), 'Hà Nội');
+      await tester.enterText(
+        find.byType(TextFormField).at(2),
+        'an@example.test',
+      );
+      await tester.enterText(find.byType(TextFormField).at(3), 'secure123');
+      await tester.ensureVisible(find.widgetWithText(FilterChip, 'Chân dung'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Chân dung'));
+      await tester.ensureVisible(find.text('Tạo tài khoản'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tạo tài khoản'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.textContaining('đang chờ LENS xét duyệt'), findsOneWidget);
+      expect(find.text('Chào, Lý Gia Hân'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('creator can log out and sign in again without provider cycles', (
     tester,
   ) async {
     MockDatabase.currentUser = null;
     addTearDown(() => MockDatabase.currentUser = null);
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(null),
+          authRepositoryProvider.overrideWithValue(MockAuthRepository()),
+          myPhotographerProvider.overrideWithValue(
+            MockDatabase.photographers.singleWhere((item) => item.id == 'me'),
+          ),
+          incomingBookingsProvider.overrideWithValue(
+            AsyncData(
+              MockDatabase.bookings
+                  .where((booking) => booking.photographerId == 'me')
+                  .toList(),
+            ),
+          ),
+          myBookingsProvider.overrideWith(
+            (ref) => MockDatabase.bookings
+                .where((booking) => booking.photographerId == 'me')
+                .toList(),
+          ),
+          bookingPlansProvider.overrideWith(_DemoBookingPlansNotifier.new),
+          photographerPortfolioProvider.overrideWith(
+            (ref) async => const PortfolioWorkspace(albums: [], assets: []),
+          ),
+          photographerReviewsProvider.overrideWith((ref) async => []),
+          walletProvider.overrideWith(_EmptyWalletNotifier.new),
+        ],
+        child: const MyApp(),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 600));
 
     Future<void> signIn() async {
-      await tester.tap(find.text('Điền tài khoản mẫu'));
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'nhiepanhgia@lens.vn',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), 'demo1234');
       await tester.tap(find.text('Đăng nhập'));
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump(const Duration(seconds: 2));
@@ -568,7 +644,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [myPhotographerProvider.overrideWithValue(profile)],
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(
+            MockDatabase.photographerUser,
+          ),
+          myPhotographerProvider.overrideWithValue(profile),
+          bookingPlansProvider.overrideWith(_DemoBookingPlansNotifier.new),
+        ],
         child: const MaterialApp(home: EditPackageScreen(id: 'new')),
       ),
     );
@@ -581,7 +663,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [myPhotographerProvider.overrideWithValue(profile)],
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(
+            MockDatabase.photographerUser,
+          ),
+          myPhotographerProvider.overrideWithValue(profile),
+          bookingPlansProvider.overrideWith(_DemoBookingPlansNotifier.new),
+        ],
         child: const MaterialApp(home: EditPackageScreen(id: 'basic')),
       ),
     );
@@ -592,44 +680,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'opening a delivered gallery from storage keeps unique route pages',
-    (tester) async {
-      MockDatabase.currentUser = MockDatabase.photographerUser;
-      addTearDown(() => MockDatabase.currentUser = null);
-      await tester.pumpWidget(const ProviderScope(child: MyApp()));
-      await tester.pump(const Duration(milliseconds: 600));
-      await tester.pump(const Duration(seconds: 2));
-      expect(find.textContaining('Chào, Lý Gia Hân'), findsOneWidget);
+  testWidgets('subscription screen does not show demo storage galleries', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          initialAuthUserProvider.overrideWithValue(
+            MockDatabase.photographerUser,
+          ),
+          subscriptionWorkspaceProvider.overrideWith(
+            (ref) async => _emptySubscriptionWorkspace,
+          ),
+        ],
+        child: const MaterialApp(home: StorageScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Khác'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Lưu trữ ảnh'));
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
-      expect(find.text('Bộ sưu tập đã giao'), findsOneWidget);
-      expect(
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-        4,
-      );
-
-      final galleryTitle = find.text('Chân dung · Hoàng Thị Em');
-      await tester.scrollUntilVisible(
-        galleryTitle,
-        180,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(galleryTitle);
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(find.byType(DeliveryGalleryScreen), findsOneWidget);
-      expect(
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-        1,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('Dung lượng & gói đăng ký'), findsOneWidget);
+    expect(find.text('Backend chưa có gói đang hoạt động'), findsOneWidget);
+    expect(find.text('Bộ sưu tập đã giao'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
+
+class _DemoBookingPlansNotifier extends BookingPlansNotifier {
+  @override
+  Future<List<PhotographerPackage>> build() async => MockDatabase.photographers
+      .singleWhere((item) => item.id == 'me')
+      .packages;
+}
+
+class _EmptyWalletNotifier extends WalletNotifier {
+  @override
+  Future<WalletSnapshot> build() async =>
+      const WalletSnapshot(balance: 0, frozenBalance: 0, entries: []);
+}
+
+const _emptySubscriptionWorkspace = SubscriptionWorkspace(
+  plans: [],
+  current: null,
+  features: [],
+  usage: SubscriptionUsage(
+    storageBytes: 0,
+    reservedStorageBytes: 0,
+    storageLimitBytes: null,
+    storageRemainingBytes: null,
+    storageOverLimit: false,
+    portfolioCount: 0,
+    portfolioLimit: null,
+    portfolioRemainingCount: null,
+    portfolioOverLimit: false,
+  ),
+  history: [],
+);

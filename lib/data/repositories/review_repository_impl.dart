@@ -22,4 +22,9 @@ class ReviewRepositoryImpl implements ReviewRepository {
     total: total,
     fiveStarPercent: fiveStarPercent,
   );
+
+  @override
+  Future<void> reply(String feedbackId, String reply) async {
+    throw UnsupportedError('Mock review repository cannot submit replies.');
+  }
 }

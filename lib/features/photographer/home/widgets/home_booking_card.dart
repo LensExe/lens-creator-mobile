@@ -7,16 +7,10 @@ import '../../../../domain/booking_rules.dart';
 import '../../../../domain/models/models.dart';
 
 class HomeBookingCard extends StatelessWidget {
-  const HomeBookingCard({
-    super.key,
-    required this.booking,
-    this.onDecide,
-    this.onMessage,
-  });
+  const HomeBookingCard({super.key, required this.booking, this.onDecide});
 
   final Booking booking;
-  final Future<void> Function(BookingStatus)? onDecide;
-  final VoidCallback? onMessage;
+  final Future<void> Function(BookingStatus, {String? reason})? onDecide;
 
   String get _money =>
       '${NumberFormat.decimalPattern('vi').format(booking.price)} đ';
@@ -46,11 +40,6 @@ class HomeBookingCard extends StatelessWidget {
     final end =
         '${(totalMinutes ~/ 60).toString().padLeft(2, '0')}:${(totalMinutes % 60).toString().padLeft(2, '0')}';
     return '$dateLabel · $start - $end';
-  }
-
-  String get _clientShortName {
-    final parts = booking.clientName.trim().split(RegExp(r'\s+'));
-    return parts.isNotEmpty ? parts.last : booking.clientName;
   }
 
   @override
@@ -121,8 +110,8 @@ class HomeBookingCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
-                    'Gửi gần đây',
+                  Text(
+                    'Mã booking ${booking.id.length > 8 ? booking.id.substring(0, 8) : booking.id}',
                     style: TextStyle(color: Color(0xFF8E8D91), fontSize: 11),
                   ),
                 ],
@@ -257,7 +246,7 @@ class HomeBookingCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              'Đã cọc $_deposit Escrow',
+                              'Mức cọc yêu cầu: $_deposit',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -278,33 +267,16 @@ class HomeBookingCard extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            if (onMessage != null) ...[
-              SizedBox(
-                width: 36,
-                height: 36,
-                child: OutlinedButton(
-                  onPressed: onMessage,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    foregroundColor: const Color(0xFF474649),
-                    side: const BorderSide(color: Color(0xFFE2E1E3)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
             Expanded(
               child: SizedBox(
                 height: 36,
                 child: OutlinedButton(
-                  onPressed: () => onDecide!(BookingStatus.cancelled),
+                  onPressed: () async {
+                    final reason = await _askRejectReason(context);
+                    if (reason != null) {
+                      await onDecide!(BookingStatus.rejected, reason: reason);
+                    }
+                  },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     foregroundColor: const Color(0xFF474649),
@@ -330,7 +302,7 @@ class HomeBookingCard extends StatelessWidget {
               child: SizedBox(
                 height: 36,
                 child: FilledButton(
-                  onPressed: () => onDecide!(BookingStatus.confirmed),
+                  onPressed: () => onDecide!(BookingStatus.accepted),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     backgroundColor: const Color(0xFF1A1C1D),
@@ -362,9 +334,9 @@ class HomeBookingCard extends StatelessWidget {
     final service = package == null || package.isEmpty
         ? booking.style
         : '${booking.style} · $package';
-    final isDelivered =
-        booking.status == BookingStatus.held ||
-        booking.status == BookingStatus.released;
+    final galleryAvailable =
+        booking.status == BookingStatus.shot ||
+        booking.status == BookingStatus.completed;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,9 +361,12 @@ class HomeBookingCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
-                    'Khách hàng thân thiết',
-                    style: TextStyle(color: Color(0xFF8E8D91), fontSize: 11.5),
+                  Text(
+                    'Mã booking ${booking.id.length > 8 ? booking.id.substring(0, 8) : booking.id}',
+                    style: const TextStyle(
+                      color: Color(0xFF8E8D91),
+                      fontSize: 11.5,
+                    ),
                   ),
                 ],
               ),
@@ -400,30 +375,16 @@ class HomeBookingCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
+                color: const Color(0xFFF4F4F5),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF10B981),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'Đã cọc Escrow',
-                    style: TextStyle(
-                      color: Color(0xFF065F46),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              child: Text(
+                BookingRules.statusLabel(booking.status),
+                style: const TextStyle(
+                  color: Color(0xFF52525B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -501,20 +462,6 @@ class HomeBookingCard extends StatelessWidget {
             ],
           ),
         ),
-        if (isDelivered) ...[
-          const SizedBox(height: 8),
-          Text(
-            'Thực nhận ${NumberFormat.decimalPattern('vi').format(BookingRules.payoutFor(booking, booking.photographerId))} đ'
-            '${booking.status == BookingStatus.held ? ' · Đã giao ${booking.deliveredPhotos}/${booking.promisedPhotos ?? 1} ảnh' : ''}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF737278),
-              fontSize: 11,
-              height: 1.35,
-            ),
-          ),
-        ],
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
           child: Divider(height: 1, thickness: 1, color: Color(0xFFF4F3F4)),
@@ -527,70 +474,58 @@ class HomeBookingCard extends StatelessWidget {
           children: [
             Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(
-                  Icons.verified_user_rounded,
-                  size: 14,
-                  color: Color(0xFF059669),
-                ),
-                SizedBox(width: 4),
-                Text(
-                  'Ký quỹ Escrow bảo vệ an toàn',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF737278)),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                if (isDelivered) ...[
+                if (galleryAvailable) ...[
                   TextButton.icon(
                     onPressed: () => context.push(
                       '/photographer_home/booking/${booking.id}/gallery',
                     ),
                     icon: const Icon(Icons.photo_library_outlined, size: 15),
-                    label: Text(
-                      booking.status == BookingStatus.held
-                          ? 'Giao ảnh'
-                          : 'Xem ảnh',
-                      style: const TextStyle(fontSize: 12),
+                    label: const Text(
+                      'Mở gallery',
+                      style: TextStyle(fontSize: 12),
                     ),
                   ),
                   const SizedBox(width: 4),
                 ],
-                if (onMessage != null)
-                  FilledButton.icon(
-                    onPressed: onMessage,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFF4F4F5),
-                      foregroundColor: const Color(0xFF1A1C1D),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      minimumSize: const Size(0, 32),
-                      elevation: 0,
-                    ),
-                    icon: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 14,
-                    ),
-                    label: Text(
-                      'Nhắn tin với $_clientShortName',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ],
         ),
       ],
     );
+  }
+
+  Future<String?> _askRejectReason(BuildContext context) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lý do từ chối'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 10000,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'Nhập lý do'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(dialogContext, controller.text.trim());
+              }
+            },
+            child: const Text('Từ chối booking'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
   }
 }

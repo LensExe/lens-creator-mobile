@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -9,120 +8,17 @@ import '../../../core/widgets/creator_loading_state.dart';
 import 'achievement_provider.dart';
 import 'models/photographer_achievements.dart';
 import 'models/photographer_rank.dart';
-import 'widgets/achievement_rank_section.dart';
-import 'widgets/achievement_stats_section.dart';
-import 'widgets/current_rank_card.dart';
-import 'widgets/professional_badges_section.dart';
-
-const _badgeDefinitions = [
-  (
-    id: 'yearbook',
-    title: 'Chuyên gia kỷ yếu',
-    description: 'Nhiều buổi chụp kỷ yếu được đánh giá cao',
-    icon: Icons.auto_stories_outlined,
-  ),
-  (
-    id: 'wedding',
-    title: 'Chuyên gia ảnh cưới',
-    description: 'Kinh nghiệm ảnh cưới dày dạn',
-    icon: Icons.favorite_border_rounded,
-  ),
-  (
-    id: 'fast-reply',
-    title: 'Phản hồi nhanh',
-    description: 'Trả lời khách dưới 5 phút',
-    icon: Icons.bolt_rounded,
-  ),
-  (
-    id: 'punctual',
-    title: 'Đúng giờ tuyệt đối',
-    description: 'Luôn có mặt đúng giờ hẹn',
-    icon: Icons.schedule_rounded,
-  ),
-  (
-    id: 'top-rated',
-    title: 'Đánh giá xuất sắc',
-    description: 'Tỷ lệ đánh giá 5 sao rất cao',
-    icon: Icons.star_outline_rounded,
-  ),
-  (
-    id: 'loyal',
-    title: 'Khách quay lại',
-    description: 'Nhiều khách hàng đặt lại lần nữa',
-    icon: Icons.repeat_rounded,
-  ),
-];
 
 class AchievementsScreen extends ConsumerWidget {
   const AchievementsScreen({super.key});
 
-  void _showRankInfo(BuildContext context, int currentRankIndex) {
-    if (MediaQuery.sizeOf(context).width >= 600) {
-      showDialog<void>(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 680),
-            child: _RankInfoPanel(
-              currentRankIndex: currentRankIndex,
-              onClose: () => Navigator.pop(context),
-            ),
-          ),
-        ),
-      );
-      return;
-    }
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _RankInfoPanel(
-        currentRankIndex: currentRankIndex,
-        onClose: () => Navigator.pop(context),
-        isBottomSheet: true,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final achievementState = ref.watch(photographerAchievementsProvider);
+    final state = ref.watch(photographerAchievementsProvider);
     return Scaffold(
       backgroundColor: AppColors.mist,
-      appBar: AppBar(
-        title: const Text('Thành Tựu & Cấp Bậc'),
-        actions: [
-          Tooltip(
-            message: 'Giải thích cấp bậc & phí sàn',
-            child: TextButton.icon(
-              onPressed: () => _showRankInfo(
-                context,
-                achievementState.hasValue
-                    ? _rankIndexForSessions(
-                        achievementState.requireValue.completedSessions,
-                      )
-                    : 0,
-              ),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.slate,
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                minimumSize: const Size(0, AppTokens.touchTarget),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              icon: const Icon(Icons.help_outline_rounded, size: 20),
-              label: const Text(
-                'Giải thích',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: achievementState.when(
+      appBar: AppBar(title: const Text('Thành tựu & cấp bậc')),
+      body: state.when(
         loading: () => const CreatorLoadingState(label: 'Đang tải thành tựu…'),
         error: (error, _) => CreatorEmptyState(
           icon: Icons.cloud_off_outlined,
@@ -130,310 +26,215 @@ class AchievementsScreen extends ConsumerWidget {
           actionLabel: 'Thử lại',
           onAction: () => ref.invalidate(photographerAchievementsProvider),
         ),
-        data: (achievements) => _content(context, achievements),
+        data: (value) => _content(value),
       ),
     );
   }
 
-  Widget _content(BuildContext context, PhotographerAchievements achievements) {
-    final sessions = achievements.completedSessions;
-    final currentRankIndex = _rankIndexForSessions(sessions);
-    final currentRank = photographerRanks[currentRankIndex];
-    final nextRank = currentRankIndex + 1 < photographerRanks.length
-        ? photographerRanks[currentRankIndex + 1]
-        : null;
-    // The reference communicates completed sessions against the next tier's
-    // threshold, so this is a display ratio. Rank selection remains unchanged.
-    final progress = nextRank == null
-        ? 1.0
-        : (sessions / nextRank.minimumSessions).clamp(0.0, 1.0).toDouble();
-    final badges = [
-      for (final badge in _badgeDefinitions)
-        ProfessionalBadge(
-          id: badge.id,
-          title: badge.title,
-          description: badge.description,
-          icon: badge.icon,
-          isUnlocked: achievements.badges.contains(badge.id),
-        ),
-    ];
-
+  Widget _content(PhotographerAchievements value) {
+    final currentRank = value.ranks
+        .where((rank) => rank.code == value.currentRankCode)
+        .firstOrNull;
+    final activeBadges = value.badges
+        .where(
+          (badge) =>
+              badge.isActive || value.earnedBadgeCodes.contains(badge.code),
+        )
+        .toList();
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppTokens.contentMaxWidth),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 17, 16, 30),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
           children: [
-            const _AchievementIntro(),
-            const SizedBox(height: 19),
-            CurrentRankCard(
-              rank: currentRank,
-              sessionsCompleted: sessions,
-              progress: progress,
-              nextRank: nextRank,
-              sessionsToNextRank: nextRank == null
-                  ? 0
-                  : nextRank.minimumSessions - sessions,
+            const Text(
+              'Thông tin cấp bậc và huy hiệu lấy trực tiếp từ hồ sơ và danh mục Backend.',
+              style: TextStyle(color: AppColors.steel, height: 1.45),
             ),
-            const SizedBox(height: 24),
-            AchievementRankSection(
-              ranks: photographerRanks,
-              currentRankIndex: currentRankIndex,
-              sessionsCompleted: sessions,
-              onDetailsTap: () => _showRankInfo(context, currentRankIndex),
-            ),
-            const SizedBox(height: 24),
-            AchievementStatsSection(
-              completedSessions: achievements.completedSessions,
-              fiveStarPct: achievements.fiveStarPct,
-              returningClients: achievements.returningClients,
-              cancelRate: achievements.cancelRate,
-            ),
-            const SizedBox(height: 24),
-            ProfessionalBadgesSection(badges: badges),
-            const SizedBox(height: 18),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/photographer_home/portfolio'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                foregroundColor: AppColors.obsidian,
-                backgroundColor: AppColors.snow,
-                side: const BorderSide(color: AppColors.fog),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            const SizedBox(height: 14),
+            Card(
+              color: AppColors.snow,
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFFEEE5),
+                  child: Icon(
+                    Icons.workspace_premium_outlined,
+                    color: AppColors.ember,
+                  ),
+                ),
+                title: Text(
+                  value.currentRankName.isEmpty
+                      ? 'Chưa có cấp bậc'
+                      : value.currentRankName,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  currentRank == null
+                      ? 'Backend chưa trả về cấp bậc hiện tại.'
+                      : 'Commission ${currentRank.commissionPercent}% · ngưỡng ${currentRank.minimumSessions} booking hoàn tất',
                 ),
               ),
-              icon: const Icon(
-                Icons.edit_note_rounded,
-                color: AppColors.ember,
-                size: 21,
-              ),
-              label: const Text(
-                'Cập nhật hồ sơ năng lực',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
             ),
+            const SizedBox(height: 12),
+            _StatsCard(value: value),
+            const SizedBox(height: 22),
+            const _SectionTitle(title: 'Cấp bậc từ Backend'),
+            const SizedBox(height: 8),
+            if (value.ranks.isEmpty)
+              const _EmptyText('Backend chưa có danh mục cấp bậc.')
+            else
+              for (final rank in value.ranks)
+                _RankTile(
+                  rank: rank,
+                  current: rank.code == value.currentRankCode,
+                ),
+            const SizedBox(height: 22),
+            _SectionTitle(
+              title:
+                  'Huy hiệu từ Backend (${value.earnedBadgeCodes.length} đã nhận)',
+            ),
+            const SizedBox(height: 8),
+            if (activeBadges.isEmpty)
+              const _EmptyText('Backend chưa có huy hiệu khả dụng.')
+            else
+              for (final badge in activeBadges)
+                _BadgeTile(
+                  badge: badge,
+                  earned: value.earnedBadgeCodes.contains(badge.code),
+                ),
           ],
         ),
       ),
     );
   }
-
-  int _rankIndexForSessions(int sessions) {
-    var currentRankIndex = 0;
-    for (var index = 0; index < photographerRanks.length; index++) {
-      if (sessions >= photographerRanks[index].minimumSessions) {
-        currentRankIndex = index;
-      }
-    }
-    return currentRankIndex;
-  }
 }
 
-class _AchievementIntro extends StatelessWidget {
-  const _AchievementIntro();
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.value});
+  final PhotographerAchievements value;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'LENS CREATOR JOURNEY',
-        style: TextStyle(
-          color: AppColors.ember,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.05,
-        ),
+  Widget build(BuildContext context) => Card(
+    color: AppColors.snow,
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Wrap(
+        spacing: 20,
+        runSpacing: 14,
+        children: [
+          _Stat(label: 'Tổng booking', value: '${value.totalBookings}'),
+          _Stat(
+            label: 'Điểm trung bình',
+            value: value.averageRating.toStringAsFixed(1),
+          ),
+          _Stat(label: 'Lượt đánh giá', value: '${value.totalFeedbacks}'),
+          _Stat(label: 'Khách quay lại', value: '${value.returnCustomers}'),
+        ],
       ),
-      const SizedBox(height: 5),
-      Text(
-        'Hành trình sáng tạo',
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-          color: AppColors.obsidian,
-          fontSize: 25,
-          height: 1.15,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.6,
-        ),
-      ),
-      const SizedBox(height: 5),
-      const Text(
-        'Cấp bậc và huy hiệu nghề nghiệp của bạn.',
-        style: TextStyle(color: AppColors.steel, fontSize: 13, height: 1.45),
-      ),
-    ],
+    ),
   );
 }
 
-class _RankInfoPanel extends StatelessWidget {
-  const _RankInfoPanel({
-    required this.currentRankIndex,
-    required this.onClose,
-    this.isBottomSheet = false,
-  });
-
-  final int currentRankIndex;
-  final VoidCallback onClose;
-  final bool isBottomSheet;
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+  final String label;
+  final String value;
 
   @override
-  Widget build(BuildContext context) {
-    final panel = Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.snow,
-        borderRadius: isBottomSheet
-            ? const BorderRadius.vertical(top: Radius.circular(26))
-            : BorderRadius.circular(26),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A09090B),
-            blurRadius: 25,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  color: AppColors.ember,
-                  size: 23,
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Giải thích cấp bậc & phí sàn',
-                    style: TextStyle(
-                      color: AppColors.obsidian,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: onClose,
-                  tooltip: 'Đóng',
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.mist,
-                    foregroundColor: AppColors.slate,
-                  ),
-                  icon: const Icon(Icons.close_rounded, size: 19),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Mức phí sàn giảm theo các mốc số buổi chụp đã hoàn thành.',
-              style: TextStyle(
-                color: AppColors.slate,
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.mist,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                children: [
-                  for (var index = 0; index < photographerRanks.length; index++)
-                    _RankFeeRow(
-                      rank: photographerRanks[index],
-                      isCurrent: index == currentRankIndex,
-                      isLast: index == photographerRanks.length - 1,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: FilledButton(
-                onPressed: onClose,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.ember,
-                  foregroundColor: AppColors.snow,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                  ),
-                ),
-                child: const Text(
-                  'Đã hiểu',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (!isBottomSheet) return panel;
-    final screenHeight = MediaQuery.sizeOf(context).height;
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
-        child: panel,
-      ),
-    );
-  }
-}
-
-class _RankFeeRow extends StatelessWidget {
-  const _RankFeeRow({
-    required this.rank,
-    required this.isCurrent,
-    required this.isLast,
-  });
-
-  final PhotographerRank rank;
-  final bool isCurrent;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    decoration: BoxDecoration(
-      border: isLast
-          ? null
-          : const Border(bottom: BorderSide(color: AppColors.fog)),
-    ),
-    child: Row(
+  Widget build(BuildContext context) => SizedBox(
+    width: 130,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            '${rank.name} (${rank.minimumSessions} buổi)',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isCurrent ? AppColors.ember : AppColors.obsidian,
-              fontSize: 11,
-              fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
         Text(
-          '${rank.commissionPercent}% phí sàn',
-          style: TextStyle(
-            color: isCurrent ? AppColors.ember : AppColors.graphite,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
+          value,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+        ),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.steel, fontSize: 11),
         ),
       ],
     ),
+  );
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    title,
+    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+  );
+}
+
+class _RankTile extends StatelessWidget {
+  const _RankTile({required this.rank, required this.current});
+  final PhotographerRank rank;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: current ? const Color(0xFFFFEEE5) : AppColors.snow,
+    child: ListTile(
+      leading: Icon(
+        current ? Icons.check_circle : Icons.workspace_premium_outlined,
+        color: current ? AppColors.ember : AppColors.steel,
+      ),
+      title: Text(
+        rank.name,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        'Từ ${rank.minimumSessions} booking hoàn tất · commission ${rank.commissionPercent}%',
+      ),
+      trailing: current ? const Text('Hiện tại') : null,
+    ),
+  );
+}
+
+class _BadgeTile extends StatelessWidget {
+  const _BadgeTile({required this.badge, required this.earned});
+  final PhotographerBadge badge;
+  final bool earned;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: AppColors.snow,
+    child: ListTile(
+      leading: Icon(
+        earned ? Icons.verified_outlined : Icons.workspace_premium_outlined,
+        color: earned ? AppColors.ember : AppColors.steel,
+      ),
+      title: Text(
+        badge.name,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        '${badge.description}\nĐiều kiện: ${_metricLabel(badge.metric)} ≥ ${badge.minimumValue} · tối thiểu ${badge.minimumReviews} review',
+      ),
+      isThreeLine: true,
+      trailing: Text(earned ? 'Đã nhận' : 'Chưa nhận'),
+    ),
+  );
+}
+
+String _metricLabel(String metric) => switch (metric) {
+  'average_rating' => 'điểm trung bình',
+  'average_punctuality' => 'điểm đúng giờ',
+  'return_customers' => 'khách quay lại',
+  _ => metric,
+};
+
+class _EmptyText extends StatelessWidget {
+  const _EmptyText(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    child: Text(text, style: const TextStyle(color: AppColors.steel)),
   );
 }

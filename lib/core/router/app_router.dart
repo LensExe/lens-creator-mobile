@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lens_creator_mobile/features/landing/ui_gallery_screen.dart';
 import 'package:lens_creator_mobile/features/auth/login_screen.dart';
+import 'package:lens_creator_mobile/features/auth/forgot_password_screen.dart';
+import 'package:lens_creator_mobile/features/auth/email_verification_screen.dart';
 import 'package:lens_creator_mobile/features/splash/splash_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/photographer_home_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/photographer_bookings_screen.dart';
@@ -55,6 +57,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const UiGalleryScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => ForgotPasswordScreen(
+          initialEmail: state.uri.queryParameters['email'],
+        ),
+      ),
 
       ShellRoute(
         builder: (context, state, child) => PhotographerShell(child: child),
@@ -159,6 +167,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/photographer_home/settings',
             builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/photographer_home/email-verification',
+            builder: (context, state) => const EmailVerificationScreen(),
           ),
           GoRoute(
             path: '/photographer_home/messages/:id',

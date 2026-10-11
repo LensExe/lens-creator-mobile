@@ -8,14 +8,12 @@ class SettingsProfileHeader extends StatelessWidget {
     super.key,
     required this.name,
     required this.email,
-    required this.onChangeAvatar,
     this.avatarUrl,
   });
 
   final String name;
   final String email;
   final String? avatarUrl;
-  final VoidCallback onChangeAvatar;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -34,43 +32,12 @@ class SettingsProfileHeader extends StatelessWidget {
     ),
     child: Row(
       children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE5E6E8)),
-              ),
-              child: CreatorAvatar(name: name, imageUrl: avatarUrl, size: 56),
-            ),
-            Positioned(
-              right: -2,
-              bottom: -2,
-              child: Tooltip(
-                message: 'Đổi ảnh đại diện',
-                child: Material(
-                  color: AppColors.ember,
-                  shape: const CircleBorder(),
-                  elevation: 1,
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: onChangeAvatar,
-                    child: Container(
-                      width: 22,
-                      height: 22,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.photo_camera_rounded,
-                        size: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE5E6E8)),
+          ),
+          child: CreatorAvatar(name: name, imageUrl: avatarUrl, size: 56),
         ),
         const SizedBox(width: 14),
         Expanded(

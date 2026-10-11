@@ -3,18 +3,41 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lens_creator_mobile/features/photographer/achievements/achievement_provider.dart';
 import 'package:lens_creator_mobile/features/photographer/achievements/achievements_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/achievements/models/photographer_achievements.dart';
+import 'package:lens_creator_mobile/features/photographer/achievements/models/photographer_rank.dart';
 
-const _demoAchievements = PhotographerAchievements(
-  photographerId: 'me',
-  completedSessions: 27,
-  fiveStarPct: 92,
-  returningClients: 8,
-  cancelRate: 4,
-  badges: ['fast-reply', 'punctual', 'loyal'],
+const _backendShapedAchievements = PhotographerAchievements(
+  photographerId: 'photographer-uuid',
+  currentRankCode: 'starter',
+  currentRankName: 'Người mới',
+  averageRating: 4.7,
+  totalFeedbacks: 12,
+  totalBookings: 18,
+  returnCustomers: 3,
+  ranks: [
+    PhotographerRank(
+      id: 'rank-uuid',
+      code: 'starter',
+      name: 'Người mới',
+      minimumSessions: 10,
+      commissionPercent: 10,
+    ),
+  ],
+  badges: [
+    PhotographerBadge(
+      id: 'badge-uuid',
+      code: 'high-rating',
+      name: 'Đánh giá tốt',
+      description: 'Duy trì điểm đánh giá',
+      metric: 'average_rating',
+      minimumValue: 4.5,
+      minimumReviews: 5,
+      isActive: true,
+    ),
+  ],
+  earnedBadgeCodes: {'high-rating'},
 );
 
 Widget _screen(Future<PhotographerAchievements> Function(Ref ref) load) =>
@@ -24,147 +47,55 @@ Widget _screen(Future<PhotographerAchievements> Function(Ref ref) load) =>
     );
 
 void main() {
-  testWidgets(
-    'renders real achievement data and fee explanation on narrow mobile',
-    (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(320, 740);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(_screen((ref) async => _demoAchievements));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Thành Tựu & Cấp Bậc'), findsOneWidget);
-      expect(find.text('Thợ Đồng'), findsWidgets);
-      expect(find.text('27 / 30 buổi'), findsOneWidget);
-      expect(find.text('Còn 3 buổi'), findsOneWidget);
-      expect(find.text('Phí 9% → 8%'), findsOneWidget);
-      expect(find.text('4.9'), findsNothing);
-      expect(find.text('42%'), findsNothing);
-      expect(tester.takeException(), isNull);
-
-      await tester.scrollUntilVisible(
-        find.text('Thành tích nổi bật'),
-        260,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('92%'), findsOneWidget);
-      expect(find.text('8'), findsWidgets);
-      expect(tester.takeException(), isNull);
-
-      await tester.scrollUntilVisible(
-        find.text('Huy hiệu chuyên môn'),
-        260,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('3/6 đã mở khóa'), findsOneWidget);
-
-      await tester.tap(find.text('Giải thích'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Giải thích cấp bậc & phí sàn'), findsOneWidget);
-      expect(find.text('Thợ Bạc (30 buổi)'), findsOneWidget);
-      expect(find.text('Đã hiểu'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-
-      await tester.tap(find.text('Đã hiểu'));
-      await tester.pumpAndSettle();
-      expect(find.text('Giải thích cấp bậc & phí sàn'), findsNothing);
-    },
-  );
-
-  testWidgets('uses a centered fee dialog on a wide layout', (tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1000, 900);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await tester.pumpWidget(_screen((ref) async => _demoAchievements));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Giải thích'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Mức phí sàn giảm theo các mốc số buổi chụp đã hoàn thành.'),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('handles a new creator and long metrics at the highest rank', (
+  testWidgets('renders only rank and metrics supplied by the repository', (
     tester,
   ) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(320, 740);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    const newCreator = PhotographerAchievements(
-      photographerId: 'new-creator',
-      completedSessions: 0,
-      fiveStarPct: 0,
-      returningClients: 0,
-      cancelRate: 0,
-      badges: [],
-    );
-    await tester.pumpWidget(_screen((ref) async => newCreator));
+    await tester.pumpWidget(_screen((ref) async => _backendShapedAchievements));
     await tester.pumpAndSettle();
-    expect(find.text('Tân binh'), findsWidgets);
-    expect(find.text('Còn 10 buổi'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Huy hiệu chuyên môn'),
-      260,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('0/6 đã mở khóa'), findsOneWidget);
-    expect(tester.takeException(), isNull);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    const topRank = PhotographerAchievements(
-      photographerId: 'top-creator',
-      completedSessions: 999999999,
-      fiveStarPct: 99,
-      returningClients: 999999999,
-      cancelRate: 18,
-      badges: [
-        'yearbook',
-        'wedding',
-        'fast-reply',
-        'punctual',
-        'top-rated',
-        'loyal',
-      ],
-    );
-    await tester.pumpWidget(_screen((ref) async => topRank));
-    await tester.pumpAndSettle();
-    expect(find.text('Thợ Kim Cương'), findsWidgets);
-    expect(
-      find.text('Bạn đang ở cấp bậc cao nhất của lộ trình.'),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-
-    await tester.scrollUntilVisible(
-      find.text('Tỷ lệ huỷ lịch'),
-      260,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(
-      find.text('Tỷ lệ huỷ đang cao. Cần cải thiện để bảo vệ thứ hạng.'),
-      findsOneWidget,
-    );
+    expect(find.text('Người mới'), findsWidgets);
+    expect(find.text('18'), findsOneWidget);
+    expect(find.text('4.7'), findsOneWidget);
+    expect(find.text('12'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('Đánh giá tốt'), findsOneWidget);
+    expect(find.text('92%'), findsNothing);
+    expect(find.text('Tỷ lệ huỷ lịch'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('preserves the loading state and retry action', (tester) async {
+  testWidgets('renders empty catalogs without inventing ranks or badges', (
+    tester,
+  ) async {
+    const empty = PhotographerAchievements(
+      photographerId: 'new-photographer',
+      currentRankCode: '',
+      currentRankName: '',
+      averageRating: 0,
+      totalFeedbacks: 0,
+      totalBookings: 0,
+      returnCustomers: 0,
+      ranks: [],
+      badges: [],
+      earnedBadgeCodes: {},
+    );
+    await tester.pumpWidget(_screen((ref) async => empty));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chưa có cấp bậc'), findsOneWidget);
+    expect(find.text('Backend chưa có danh mục cấp bậc.'), findsOneWidget);
+    expect(find.text('Backend chưa có huy hiệu khả dụng.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('preserves loading, error, and retry states', (tester) async {
     final pending = Completer<PhotographerAchievements>();
     var requests = 0;
     await tester.pumpWidget(
       _screen((ref) {
         requests++;
         if (requests == 1) return pending.future;
-        return Future.value(_demoAchievements);
+        return Future.value(_backendShapedAchievements);
       }),
     );
 
@@ -175,52 +106,7 @@ void main() {
 
     await tester.tap(find.text('Thử lại'));
     await tester.pumpAndSettle();
-    expect(find.text('Hành trình sáng tạo'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('keeps the existing portfolio destination', (tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(390, 844);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final router = GoRouter(
-      initialLocation: '/achievements',
-      routes: [
-        GoRoute(
-          path: '/achievements',
-          builder: (context, state) => const AchievementsScreen(),
-        ),
-        GoRoute(
-          path: '/photographer_home/portfolio',
-          builder: (context, state) =>
-              const Scaffold(body: Center(child: Text('Hồ sơ năng lực đích'))),
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          photographerAchievementsProvider.overrideWith(
-            (ref) async => _demoAchievements,
-          ),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Cập nhật hồ sơ năng lực'),
-      280,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('Cập nhật hồ sơ năng lực'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Hồ sơ năng lực đích'), findsOneWidget);
+    expect(find.text('Tổng booking'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

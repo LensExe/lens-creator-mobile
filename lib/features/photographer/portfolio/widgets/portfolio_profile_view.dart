@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../domain/models/models.dart';
-import '../../bookings/widgets/studio_booking_card.dart' show formatDong;
 import 'portfolio_photo_grid.dart';
 import 'portfolio_profile_header.dart';
 
@@ -13,12 +12,22 @@ class PortfolioProfileView extends StatelessWidget {
     required this.onPreview,
     required this.onEdit,
     required this.onAddPhoto,
+    required this.onRemovePhoto,
+    required this.onMovePhoto,
+    required this.portfolioName,
+    required this.uploading,
+    required this.uploadProgress,
   });
 
   final Photographer profile;
   final VoidCallback onPreview;
   final VoidCallback onEdit;
   final VoidCallback onAddPhoto;
+  final ValueChanged<int> onRemovePhoto;
+  final void Function(int index, int delta) onMovePhoto;
+  final String? portfolioName;
+  final bool uploading;
+  final double uploadProgress;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -42,7 +51,15 @@ class PortfolioProfileView extends StatelessWidget {
       const SizedBox(height: 14),
       _ProfileDetailsCard(profile: profile, onEdit: onEdit),
       const SizedBox(height: 20),
-      _PortfolioGallerySection(profile: profile, onAddPhoto: onAddPhoto),
+      _PortfolioGallerySection(
+        profile: profile,
+        portfolioName: portfolioName,
+        uploading: uploading,
+        uploadProgress: uploadProgress,
+        onAddPhoto: onAddPhoto,
+        onRemovePhoto: onRemovePhoto,
+        onMovePhoto: onMovePhoto,
+      ),
       const SizedBox(height: 20),
       Row(
         children: [
@@ -201,28 +218,6 @@ class _ProfileDetailsCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Text.rich(
-              TextSpan(
-                children: [
-                  const TextSpan(
-                    text: 'Giá từ ',
-                    style: TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
-                  ),
-                  TextSpan(
-                    text: formatDong(profile.pricePerSession),
-                    style: const TextStyle(
-                      color: Color(0xFF1A1C1D),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const TextSpan(
-                    text: ' / gói',
-                    style: TextStyle(color: Color(0xFF5D5E66), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -303,11 +298,21 @@ class _ProfileDetailsCard extends StatelessWidget {
 class _PortfolioGallerySection extends StatelessWidget {
   const _PortfolioGallerySection({
     required this.profile,
+    required this.portfolioName,
+    required this.uploading,
+    required this.uploadProgress,
     required this.onAddPhoto,
+    required this.onRemovePhoto,
+    required this.onMovePhoto,
   });
 
   final Photographer profile;
+  final String? portfolioName;
+  final bool uploading;
+  final double uploadProgress;
   final VoidCallback onAddPhoto;
+  final ValueChanged<int> onRemovePhoto;
+  final void Function(int index, int delta) onMovePhoto;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -332,7 +337,9 @@ class _PortfolioGallerySection extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${profile.portfolio.length} tác phẩm chọn lọc',
+                  portfolioName == null
+                      ? 'Chưa có bộ sưu tập'
+                      : '$portfolioName · ${profile.portfolio.length} tác phẩm',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -343,44 +350,31 @@ class _PortfolioGallerySection extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: onAddPhoto,
-            borderRadius: BorderRadius.circular(9999),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFDBCF),
-                borderRadius: BorderRadius.circular(9999),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add, size: 16, color: Color(0xFF802900)),
-                  SizedBox(width: 4),
-                  Text(
-                    'Thêm ảnh',
-                    style: TextStyle(
-                      color: Color(0xFF802900),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
       const SizedBox(height: 12),
-      PortfolioPhotoGrid(photos: profile.portfolio, styles: profile.styles),
+      PortfolioPhotoGrid(
+        photos: profile.portfolio,
+        onRemove: uploading ? null : onRemovePhoto,
+        onMove: uploading ? null : onMovePhoto,
+      ),
+      const SizedBox(height: 12),
+      if (uploading) ...[
+        const Text(
+          'Đang tải ảnh và chờ Backend xử lý…',
+          style: TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(value: uploadProgress),
+      ] else
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: onAddPhoto,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+            label: const Text('Thêm ảnh vào portfolio'),
+          ),
+        ),
     ],
   );
 }

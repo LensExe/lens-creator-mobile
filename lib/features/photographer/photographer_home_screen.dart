@@ -8,10 +8,7 @@ import '../../core/widgets/creator_empty_state.dart';
 import '../../core/widgets/creator_loading_state.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
-import 'bookings/widgets/collaboration_invites.dart';
 import 'home/widgets/home_booking_card.dart';
-import 'messages/conversation_navigation.dart';
-import 'messages/conversation_provider.dart';
 import 'wallet/wallet_provider.dart';
 import 'widgets/photographer_app_bar.dart';
 
@@ -22,18 +19,9 @@ class PhotographerHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myPhotographerProvider);
     final state = ref.watch(incomingBookingsProvider);
-    final unreadMessages = ref
-        .watch(conversationsProvider)
-        .fold<int>(
-          0,
-          (total, conversation) => total + conversation.unreadCount,
-        );
     final walletBalance = ref
         .watch(walletProvider)
-        .whenOrNull(
-          data: (entries) =>
-              entries.fold<int>(0, (total, entry) => total + entry.amount),
-        );
+        .whenOrNull(data: (snapshot) => snapshot.balance);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F9),
@@ -62,8 +50,8 @@ class PhotographerHomeScreen extends ConsumerWidget {
           final upcoming =
               bookings.where((booking) {
                 final date = DateTime.tryParse(booking.date);
-                return (booking.status == BookingStatus.confirmed ||
-                        booking.status == BookingStatus.held) &&
+                return (booking.status == BookingStatus.accepted ||
+                        booking.status == BookingStatus.inProgress) &&
                     date != null &&
                     !DateUtils.dateOnly(date).isBefore(today);
               }).toList()..sort((a, b) {
@@ -168,11 +156,26 @@ class PhotographerHomeScreen extends ConsumerWidget {
                     for (final booking in pending.take(2))
                       HomeBookingCard(
                         booking: booking,
-                        onMessage: () =>
-                            openClientConversation(context, ref, booking),
-                        onDecide: (status) => ref
-                            .read(asyncBookingsProvider.notifier)
-                            .updateBookingStatus(booking.id, status),
+                        onDecide: (status, {reason}) async {
+                          try {
+                            await ref
+                                .read(asyncBookingsProvider.notifier)
+                                .updateBookingStatus(
+                                  booking.id,
+                                  status,
+                                  reason: reason,
+                                );
+                            ref.invalidate(
+                              creatorBookingDetailProvider(booking.id),
+                            );
+                          } catch (error) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text('$error')));
+                            }
+                          }
+                        },
                       ),
                   const SizedBox(height: 18),
                   Row(
@@ -230,25 +233,18 @@ class PhotographerHomeScreen extends ConsumerWidget {
                     )
                   else
                     for (final booking in upcoming.take(2))
-                      HomeBookingCard(
-                        booking: booking,
-                        onMessage: () =>
-                            openClientConversation(context, ref, booking),
-                      ),
+                      HomeBookingCard(booking: booking),
                   const SizedBox(height: 10),
-                  const CollaborationInvites(subdued: true),
                   const SizedBox(height: 20),
                   const _WorkspaceToolsHeading(),
                   const SizedBox(height: 10),
                   _WorkspaceLinks(
-                    unreadMessages: unreadMessages,
                     walletBalance: walletBalance,
                     onAvailability: () =>
                         context.push('/photographer_home/availability'),
                     onPortfolio: () =>
                         context.push('/photographer_home/portfolio'),
                     onPackages: () => context.go('/photographer_home/packages'),
-                    onMessages: () => context.go('/photographer_home/messages'),
                     onWallet: () => context.push('/photographer_home/wallet'),
                   ),
                 ],
@@ -321,7 +317,7 @@ class _HomeGreeting extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '$cityDisplay · 28°C',
+              cityDisplay,
               style: const TextStyle(
                 color: Color(0xFF737278),
                 fontSize: 12,
@@ -451,21 +447,17 @@ class _AttentionPanel extends StatelessWidget {
 
 class _WorkspaceLinks extends StatelessWidget {
   const _WorkspaceLinks({
-    required this.unreadMessages,
     required this.walletBalance,
     required this.onAvailability,
     required this.onPortfolio,
     required this.onPackages,
-    required this.onMessages,
     required this.onWallet,
   });
 
-  final int unreadMessages;
   final int? walletBalance;
   final VoidCallback onAvailability;
   final VoidCallback onPortfolio;
   final VoidCallback onPackages;
-  final VoidCallback onMessages;
   final VoidCallback onWallet;
 
   @override
@@ -501,32 +493,6 @@ class _WorkspaceLinks extends StatelessWidget {
           icon: Icons.style_outlined,
           title: 'Gói dịch vụ',
           onTap: onPackages,
-        ),
-        const Divider(height: 1, thickness: 1, color: Color(0xFFF2F1F3)),
-        _ToolRow(
-          icon: Icons.chat_bubble_outline_rounded,
-          title: 'Tin nhắn',
-          trailing: unreadMessages > 0
-              ? Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF5A00),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '$unreadMessages mới',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              : null,
-          onTap: onMessages,
         ),
         const Divider(height: 1, thickness: 1, color: Color(0xFFF2F1F3)),
         _ToolRow(

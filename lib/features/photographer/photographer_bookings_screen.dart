@@ -10,8 +10,6 @@ import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
 import 'bookings/widgets/booking_group_tabs.dart';
 import 'bookings/widgets/booking_management_card.dart';
-import 'bookings/widgets/collaboration_invites.dart';
-import 'messages/conversation_navigation.dart';
 import 'widgets/photographer_app_bar.dart';
 
 enum _BookingGroup { pending, active, done, cancelled }
@@ -36,25 +34,36 @@ class _PhotographerBookingsScreenState
   bool _inGroup(Booking booking) => switch (group) {
     _BookingGroup.pending => booking.status == BookingStatus.pending,
     _BookingGroup.active =>
-      booking.status == BookingStatus.confirmed ||
-          booking.status == BookingStatus.held,
-    _BookingGroup.done => booking.status == BookingStatus.released,
-    _BookingGroup.cancelled => booking.status == BookingStatus.cancelled,
+      booking.status == BookingStatus.accepted ||
+          booking.status == BookingStatus.inProgress ||
+          booking.status == BookingStatus.shot,
+    _BookingGroup.done => booking.status == BookingStatus.completed,
+    _BookingGroup.cancelled =>
+      booking.status == BookingStatus.rejected ||
+          booking.status == BookingStatus.expired ||
+          booking.status == BookingStatus.cancelled,
   };
 
   Future<void> _decide(Booking booking, BookingStatus status) async {
+    String? reason;
+    if (status == BookingStatus.rejected) {
+      reason = await _askRejectReason();
+      if (reason == null || !mounted) return;
+    }
     setState(() => decidingId = booking.id);
     try {
       await ref
           .read(asyncBookingsProvider.notifier)
-          .updateBookingStatus(booking.id, status);
+          .updateBookingStatus(booking.id, status, reason: reason);
+      ref.invalidate(creatorBookingDetailProvider(booking.id));
+      ref.invalidate(creatorBookingTimelineProvider(booking.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              status == BookingStatus.confirmed
-                  ? 'Đã xác nhận lịch chụp với ${booking.clientName}'
-                  : 'Đã từ chối và hoàn cọc cho ${booking.clientName}',
+              status == BookingStatus.accepted
+                  ? 'Backend đã chấp nhận booking.'
+                  : 'Backend đã ghi nhận từ chối booking.',
             ),
           ),
         );
@@ -70,6 +79,41 @@ class _PhotographerBookingsScreenState
         setState(() => decidingId = null);
       }
     }
+  }
+
+  Future<String?> _askRejectReason() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lý do từ chối'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 10000,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Nhập lý do để Backend lưu vào lịch sử booking',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(dialogContext, controller.text.trim());
+              }
+            },
+            child: const Text('Từ chối booking'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
   }
 
   @override
@@ -93,20 +137,26 @@ class _PhotographerBookingsScreenState
               .where((b) => b.status == BookingStatus.pending)
               .length;
           final due = bookings
-              .where((b) => b.status == BookingStatus.held)
+              .where((b) => b.status == BookingStatus.shot)
               .length;
           final completed = bookings
-              .where((b) => b.status == BookingStatus.released)
+              .where((b) => b.status == BookingStatus.completed)
               .length;
           final active = bookings
               .where(
                 (b) =>
-                    b.status == BookingStatus.confirmed ||
-                    b.status == BookingStatus.held,
+                    b.status == BookingStatus.accepted ||
+                    b.status == BookingStatus.inProgress ||
+                    b.status == BookingStatus.shot,
               )
               .length;
           final cancelled = bookings
-              .where((b) => b.status == BookingStatus.cancelled)
+              .where(
+                (b) =>
+                    b.status == BookingStatus.cancelled ||
+                    b.status == BookingStatus.rejected ||
+                    b.status == BookingStatus.expired,
+              )
               .length;
           final search = query.trim().toLowerCase();
           final filtered = bookings.where((b) {
@@ -145,8 +195,6 @@ class _PhotographerBookingsScreenState
                     onAvailability: () =>
                         context.push('/photographer_home/availability'),
                   ),
-                  const SizedBox(height: 14),
-                  const CollaborationInvites(compact: true),
                   const SizedBox(height: 14),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -194,8 +242,6 @@ class _PhotographerBookingsScreenState
                         booking: booking,
                         busy: decidingId == booking.id,
                         onDecide: (status) => _decide(booking, status),
-                        onMessage: () =>
-                            openClientConversation(context, ref, booking),
                       ),
                 ],
               ),

@@ -6,7 +6,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/creator_avatar.dart';
 import '../../../../core/widgets/creator_status_badge.dart';
-import '../../../../domain/booking_rules.dart';
 import '../../../../domain/models/models.dart';
 
 class BookingManagementCard extends StatelessWidget {
@@ -64,9 +63,9 @@ class BookingManagementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPending = booking.status == BookingStatus.pending;
-    final isDelivered =
-        booking.status == BookingStatus.held ||
-        booking.status == BookingStatus.released;
+    final galleryReady =
+        booking.status == BookingStatus.shot ||
+        booking.status == BookingStatus.completed;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -183,28 +182,14 @@ class BookingManagementCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isDelivered) ...[
-                  Text(
-                    'Thực nhận ${_money(BookingRules.payoutFor(booking, booking.photographerId))}'
-                    '${booking.status == BookingStatus.held ? ' · Đã giao ${booking.deliveredPhotos}/${booking.promisedPhotos ?? 1} ảnh' : ''}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.steel,
-                      fontSize: 11,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                ],
                 if (isPending && onDecide != null)
                   _PendingActions(
                     busy: busy,
                     onMessage: onMessage,
-                    onReject: () => onDecide!(BookingStatus.cancelled),
-                    onConfirm: () => onDecide!(BookingStatus.confirmed),
+                    onReject: () => onDecide!(BookingStatus.rejected),
+                    onConfirm: () => onDecide!(BookingStatus.accepted),
                   )
-                else if (onMessage != null || isDelivered)
+                else if (onMessage != null || galleryReady)
                   Wrap(
                     spacing: 4,
                     children: [
@@ -215,7 +200,7 @@ class BookingManagementCard extends StatelessWidget {
                           icon: const Icon(Icons.chat_bubble_outline, size: 16),
                           label: const Text('Nhắn tin'),
                         ),
-                      if (isDelivered)
+                      if (galleryReady)
                         TextButton.icon(
                           onPressed: () => context.push(
                             '/photographer_home/booking/${booking.id}/gallery',
@@ -225,9 +210,9 @@ class BookingManagementCard extends StatelessWidget {
                             size: 16,
                           ),
                           label: Text(
-                            booking.status == BookingStatus.held
-                                ? 'Giao ảnh'
-                                : 'Xem ảnh',
+                            booking.status == BookingStatus.shot
+                                ? 'Quản lý gallery'
+                                : 'Xem gallery',
                           ),
                         ),
                     ],
@@ -300,18 +285,18 @@ class _DepositBadge extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(
-          Icons.verified_user_outlined,
+          Icons.account_balance_wallet_outlined,
           size: 13,
-          color: Color(0xFF087443),
+          color: AppColors.slate,
         ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
-            'Đã cọc $amount',
+            'Mức cọc $amount',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF087443),
+              color: AppColors.slate,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),

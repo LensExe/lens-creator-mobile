@@ -36,12 +36,24 @@ class AvailabilityBookingCard extends StatelessWidget {
         return 'Chờ xác nhận';
       case BookingStatus.confirmed:
         return 'Đã xác nhận';
+      case BookingStatus.accepted:
+        return 'Đã chấp nhận';
       case BookingStatus.held:
-        return 'Đã chốt Escrow';
+        return 'Đang thực hiện';
+      case BookingStatus.inProgress:
+        return 'Đang chụp';
+      case BookingStatus.shot:
+        return 'Đã chụp';
       case BookingStatus.released:
         return 'Đã hoàn tất';
+      case BookingStatus.completed:
+        return 'Hoàn thành';
       case BookingStatus.cancelled:
         return 'Đã huỷ';
+      case BookingStatus.rejected:
+        return 'Đã từ chối';
+      case BookingStatus.expired:
+        return 'Hết hạn';
     }
   }
 

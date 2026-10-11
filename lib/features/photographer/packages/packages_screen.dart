@@ -6,9 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/creator_avatar.dart';
 import '../../../providers/data_providers.dart';
+import 'booking_plan_repository.dart';
 import 'widgets/empty_packages_card.dart';
 import 'widgets/package_card_item.dart';
-import 'widgets/package_policy_card.dart';
 
 class PackagesScreen extends ConsumerWidget {
   const PackagesScreen({super.key});
@@ -16,6 +16,7 @@ class PackagesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myPhotographerProvider);
+    final plans = ref.watch(bookingPlansProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FA),
       appBar: AppBar(
@@ -96,7 +97,7 @@ class PackagesScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: profile == null
+      body: ref.watch(authUserProvider) == null
           ? const Center(
               child: Text('Vui lòng đăng nhập tài khoản nhiếp ảnh gia'),
             )
@@ -135,21 +136,48 @@ class PackagesScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 25),
-                    _PackageListHeading(count: profile.packages.length),
-                    const SizedBox(height: 12),
-                    if (profile.packages.isEmpty)
-                      const EmptyPackagesCard()
-                    else
-                      for (final package in profile.packages)
-                        PackageCardItem(package: package),
-                    const SizedBox(height: 8),
-                    const PackagePolicyCard(),
+                    plans.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (error, _) => _PlansError(
+                        message: '$error',
+                        onRetry: () => ref.invalidate(bookingPlansProvider),
+                      ),
+                      data: (items) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _PackageListHeading(count: items.length),
+                          const SizedBox(height: 12),
+                          if (items.isEmpty)
+                            const EmptyPackagesCard()
+                          else
+                            for (final package in items)
+                              PackageCardItem(package: package),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
     );
   }
+}
+
+class _PlansError extends StatelessWidget {
+  const _PlansError({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text('Không tải được gói dịch vụ: $message'),
+      TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+    ],
+  );
 }
 
 class _StudioTag extends StatelessWidget {

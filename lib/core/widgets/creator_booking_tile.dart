@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../domain/booking_rules.dart';
 import '../../domain/models/models.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
@@ -54,9 +53,9 @@ class CreatorBookingTile extends StatelessWidget {
         : DateFormat('dd/MM/yyyy').format(date);
     final time = _timeRange();
     final isPending = booking.status == BookingStatus.pending;
-    final isDelivered =
-        booking.status == BookingStatus.held ||
-        booking.status == BookingStatus.released;
+    final galleryReady =
+        booking.status == BookingStatus.shot ||
+        booking.status == BookingStatus.completed;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -170,22 +169,10 @@ class CreatorBookingTile extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (isPending) ...[
+                if (isPending && booking.depositAmount > 0) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Đã cọc ${_money(booking.depositAmount)}',
-                    style: const TextStyle(
-                      color: AppColors.steel,
-                      fontSize: 12,
-                    ),
-                  ),
-                ] else if (isDelivered) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Thực nhận ${_money(BookingRules.payoutFor(booking, booking.photographerId))}'
-                    '${booking.status == BookingStatus.held ? ' · Đã giao ${booking.deliveredPhotos}/${booking.promisedPhotos ?? 1} ảnh' : ''}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    'Mức cọc yêu cầu ${_money(booking.depositAmount)}',
                     style: const TextStyle(
                       color: AppColors.steel,
                       fontSize: 12,
@@ -196,8 +183,8 @@ class CreatorBookingTile extends StatelessWidget {
                   const SizedBox(height: 15),
                   CreatorDecisionActions(
                     busy: busy,
-                    onDecline: () => onDecide!(BookingStatus.cancelled),
-                    onAccept: () => onDecide!(BookingStatus.confirmed),
+                    onDecline: () => onDecide!(BookingStatus.rejected),
+                    onAccept: () => onDecide!(BookingStatus.accepted),
                   ),
                 ],
                 if (onMessage != null || onGallery != null) ...[
@@ -212,18 +199,14 @@ class CreatorBookingTile extends StatelessWidget {
                           icon: const Icon(Icons.chat_bubble_outline, size: 16),
                           label: const Text('Nhắn tin'),
                         ),
-                      if (onGallery != null && isDelivered)
+                      if (onGallery != null && galleryReady)
                         TextButton.icon(
                           onPressed: onGallery,
                           icon: const Icon(
                             Icons.photo_library_outlined,
                             size: 16,
                           ),
-                          label: Text(
-                            booking.status == BookingStatus.held
-                                ? 'Giao ảnh'
-                                : 'Xem ảnh',
-                          ),
+                          label: const Text('Mở gallery'),
                         ),
                     ],
                   ),

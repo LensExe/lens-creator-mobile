@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,6 +13,8 @@ import '../../../domain/models/review.dart';
 import '../../../providers/data_providers.dart';
 import '../bookings/widgets/studio_booking_card.dart' show formatDong;
 import '../reviews/review_provider.dart';
+import '../packages/booking_plan_repository.dart';
+import 'api_portfolio_repository.dart';
 
 class PublicProfileScreen extends ConsumerWidget {
   const PublicProfileScreen({super.key});
@@ -21,6 +22,8 @@ class PublicProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myPhotographerProvider);
+    final plans = ref.watch(bookingPlansProvider);
+    final portfolio = ref.watch(photographerPortfolioProvider);
     if (profile == null) {
       return const Scaffold(
         backgroundColor: Color(0xFFF9F9FA),
@@ -57,23 +60,6 @@ class PublicProfileScreen extends ConsumerWidget {
           centerTitle: false,
           actions: [
             IconButton(
-              tooltip: 'Chia sẻ hồ sơ',
-              icon: const Icon(
-                Icons.ios_share,
-                size: 22,
-                color: Color(0xFF5F5E60),
-              ),
-              onPressed: () async {
-                final route = GoRouterState.of(context).uri.toString();
-                await Clipboard.setData(ClipboardData(text: route));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đã sao chép liên kết hồ sơ')),
-                  );
-                }
-              },
-            ),
-            IconButton(
               tooltip: 'Chỉnh sửa hồ sơ',
               icon: const Icon(
                 Icons.edit_outlined,
@@ -103,8 +89,17 @@ class PublicProfileScreen extends ConsumerWidget {
               ],
               body: TabBarView(
                 children: [
-                  _PortfolioTab(profile: profile),
-                  _AboutTab(profile: profile),
+                  _PortfolioTab(
+                    profile: profile,
+                    portfolio: portfolio,
+                    onRetry: () =>
+                        ref.invalidate(photographerPortfolioProvider),
+                  ),
+                  _AboutTab(
+                    profile: profile,
+                    plans: plans,
+                    onRetry: () => ref.invalidate(bookingPlansProvider),
+                  ),
                   _ProfileReviewsTab(
                     profile: profile,
                     onSeeAll: () => context.push('/photographer_home/reviews'),
@@ -114,7 +109,6 @@ class PublicProfileScreen extends ConsumerWidget {
             ),
           ),
         ),
-        bottomNavigationBar: _StickyBottomClientBar(profile: profile),
       ),
     );
   }
@@ -220,30 +214,6 @@ class _PublicProfileHeroHeader extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          bottom: 2,
-                          right: 2,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF5A00),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0x20000000),
-                                  blurRadius: 3,
-                                  offset: Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.check,
-                              size: 13,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
 
@@ -289,7 +259,7 @@ class _PublicProfileHeroHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
 
-                // Name & Verified Badge
+                // Name
                 Row(
                   children: [
                     Flexible(
@@ -304,12 +274,6 @@ class _PublicProfileHeroHeader extends StatelessWidget {
                           letterSpacing: -0.3,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.verified,
-                      size: 18,
-                      color: Color(0xFFA83900),
                     ),
                   ],
                 ),
@@ -403,56 +367,6 @@ class _PublicProfileHeroHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-
-                // Starting Price Box
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F3F4),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Mức giá khởi điểm',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Color(0xFF5F5E60),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'từ ',
-                            style: TextStyle(
-                              color: Color(0xFF5F5E60),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            formatDong(profile.pricePerSession),
-                            style: const TextStyle(
-                              color: Color(0xFFFF5A00),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -512,200 +426,140 @@ class _PublicProfileTabBar extends StatelessWidget {
 // 3. TAB 1: TÁC PHẨM (PORTFOLIO LOOKBOOK)
 // ============================================================================
 class _PortfolioTab extends StatelessWidget {
-  const _PortfolioTab({required this.profile});
+  const _PortfolioTab({
+    required this.profile,
+    required this.portfolio,
+    required this.onRetry,
+  });
 
   final Photographer profile;
+  final AsyncValue<PortfolioWorkspace> portfolio;
+  final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget build(BuildContext context) => portfolio.when(
+    loading: () => const CreatorLoadingState(label: 'Đang tải portfolio…'),
+    error: (error, _) => CreatorEmptyState(
+      icon: Icons.cloud_off_outlined,
+      title: 'Không thể tải portfolio',
+      description: '$error',
+      actionLabel: 'Thử lại',
+      onAction: onRetry,
+    ),
+    data: (workspace) => _gallery(
+      context,
+      profile.copyWith(
+        portfolio: workspace.assets.map((asset) => asset.url).toList(),
+      ),
+    ),
+  );
+
+  Widget _gallery(BuildContext context, Photographer profile) =>
+      SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Flexible(
-              child: Text(
-                'Tác phẩm tiêu biểu (${profile.portfolio.length})',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF5F5E60),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Row(
-              mainAxisSize: MainAxisSize.min,
+            Row(
               children: [
-                Icon(Icons.tune, size: 15, color: Color(0xFFA83900)),
-                SizedBox(width: 4),
-                Text(
-                  'Bộ sưu tập',
-                  style: TextStyle(
-                    color: Color(0xFFA83900),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    'Tác phẩm tiêu biểu (${profile.portfolio.length})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF5F5E60),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (profile.portfolio.isEmpty)
-          const CreatorEmptyState(
-            icon: Icons.photo_library_outlined,
-            title: 'Chưa có tác phẩm',
-          )
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: profile.portfolio.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.75,
-            ),
-            itemBuilder: (context, index) {
-              final category = profile.styles.isNotEmpty
-                  ? profile.styles[index % profile.styles.length]
-                  : 'Ngoại cảnh';
-              final title = 'Tác phẩm #${index + 1}';
-
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEEEEE),
+            const SizedBox(height: 12),
+            if (profile.portfolio.isEmpty)
+              const CreatorEmptyState(
+                icon: Icons.photo_library_outlined,
+                title: 'Chưa có tác phẩm',
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: profile.portfolio.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.75,
+                ),
+                itemBuilder: (context, index) {
+                  return ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CreatorMediaSurface(
-                        imageUrl: profile.portfolio[index],
-                        radius: 14,
-                        placeholderIcon: Icons.broken_image_outlined,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEEEEE),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Color(0x15000000),
-                              Color(0xB3000000),
-                            ],
-                            stops: [0.0, 0.5, 1.0],
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CreatorMediaSurface(
+                            imageUrl: profile.portfolio[index],
+                            radius: 14,
+                            placeholderIcon: Icons.broken_image_outlined,
                           ),
-                        ),
-                      ),
-                      // Top Left Category Tag
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(9999),
-                          ),
-                          child: Text(
-                            category,
-                            style: const TextStyle(
-                              color: Color(0xFF1A1C1D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Bottom Title & Favorite
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Color(0x15000000),
+                                  Color(0xB3000000),
+                                ],
+                                stops: [0.0, 0.5, 1.0],
                               ),
                             ),
-                            const Icon(
-                              Icons.favorite,
-                              size: 16,
-                              color: Colors.white,
+                          ),
+                          const Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Text(
+                              'Tác phẩm',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        const SizedBox(height: 14),
-        OutlinedButton(
-          onPressed: () {},
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF5F5E60),
-            backgroundColor: const Color(0xFFF3F3F4),
-            side: const BorderSide(color: Color(0xFFEEEEEF)),
-            minimumSize: const Size(0, 46),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9999),
-            ),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  'Xem tất cả tác phẩm',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
+                    ),
+                  );
+                },
               ),
-              SizedBox(width: 4),
-              Icon(Icons.expand_more, size: 18),
-            ],
-          ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 // ============================================================================
 // 4. TAB 2: GIỚI THIỆU & GÓI DỊCH VỤ
 // ============================================================================
 class _AboutTab extends StatelessWidget {
-  const _AboutTab({required this.profile});
+  const _AboutTab({
+    required this.profile,
+    required this.plans,
+    required this.onRetry,
+  });
 
   final Photographer profile;
+  final AsyncValue<List<PhotographerPackage>> plans;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
@@ -741,211 +595,123 @@ class _AboutTab extends StatelessWidget {
                   height: 1.6,
                 ),
               ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F3F4),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.photo_camera,
-                            size: 20,
-                            color: Color(0xFFA83900),
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Thiết bị chính',
-                                  style: TextStyle(
-                                    color: Color(0xFF5F5E60),
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                Text(
-                                  'Sony A7IV',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Color(0xFF1A1C1D),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F3F4),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.timer, size: 20, color: Color(0xFFA83900)),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Phản hồi',
-                                  style: TextStyle(
-                                    color: Color(0xFF5F5E60),
-                                    fontSize: 10,
-                                  ),
-                                ),
-                                Text(
-                                  '< 15 phút',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Color(0xFF1A1C1D),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
         const SizedBox(height: 18),
-
-        // Packages section header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Flexible(
-              child: Text(
-                'Gói dịch vụ nhiếp ảnh',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF1A1C1D),
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${profile.packages.length} gói khả dụng',
-              style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
-            ),
-          ],
+        plans.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => CreatorEmptyState(
+            icon: Icons.cloud_off_outlined,
+            title: 'Không thể tải gói dịch vụ',
+            description: '$error',
+            actionLabel: 'Thử lại',
+            onAction: onRetry,
+          ),
+          data: (plans) => _PlansSection(
+            plans: plans.where((plan) => plan.isActive).toList(),
+          ),
         ),
-        const SizedBox(height: 10),
-        if (profile.packages.isEmpty)
-          const CreatorEmptyState(
-            icon: Icons.camera_alt_outlined,
-            title: 'Chưa có gói dịch vụ',
-          )
-        else
-          for (var index = 0; index < profile.packages.length; index++) ...[
-            _PublicPackageCard(
-              package: profile.packages[index],
-              isPopular:
-                  index == 1 || (profile.packages.length == 1 && index == 0),
-            ),
-            const SizedBox(height: 12),
-          ],
       ],
     ),
   );
 }
 
+class _PlansSection extends StatelessWidget {
+  const _PlansSection({required this.plans});
+
+  final List<PhotographerPackage> plans;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      LayoutBuilder(
+        builder: (context, constraints) {
+          const title = Text(
+            'Gói dịch vụ nhiếp ảnh',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Color(0xFF1A1C1D),
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          );
+          final count = Text(
+            '${plans.length} gói đang hoạt động',
+            style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
+          );
+          if (constraints.maxWidth < 340) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [title, const SizedBox(height: 4), count],
+            );
+          }
+          return Row(
+            children: [
+              const Expanded(child: title),
+              const SizedBox(width: 8),
+              count,
+            ],
+          );
+        },
+      ),
+      const SizedBox(height: 10),
+      if (plans.isEmpty)
+        const CreatorEmptyState(
+          icon: Icons.camera_alt_outlined,
+          title: 'Chưa có gói dịch vụ đang hoạt động',
+        )
+      else
+        for (final plan in plans) ...[
+          _PublicPackageCard(package: plan),
+          const SizedBox(height: 12),
+        ],
+    ],
+  );
+}
+
 class _PublicPackageCard extends StatelessWidget {
-  const _PublicPackageCard({required this.package, this.isPopular = false});
+  const _PublicPackageCard({required this.package});
 
   final PhotographerPackage package;
-  final bool isPopular;
 
   @override
   Widget build(BuildContext context) => _PublicProfileSurfaceCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        package.name,
-                        style: const TextStyle(
-                          color: Color(0xFF1A1C1D),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (isPopular)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF5A00),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'PHỔ BIẾN NHẤT',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                    ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final titleAndDescription = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  package.name,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1C1D),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
-                  if (package.description.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      package.description,
-                      style: const TextStyle(
-                        color: Color(0xFF5F5E60),
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
+                ),
+                if (package.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    package.description,
+                    style: const TextStyle(
+                      color: Color(0xFF5F5E60),
+                      fontSize: 12,
+                      height: 1.4,
                     ),
-                  ],
+                  ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
+              ],
+            );
+            final price = Text(
               formatDong(package.price),
               style: const TextStyle(
                 color: Color(0xFFFF5A00),
@@ -953,8 +719,26 @@ class _PublicPackageCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
               ),
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 340) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titleAndDescription,
+                  const SizedBox(height: 6),
+                  price,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: titleAndDescription),
+                const SizedBox(width: 10),
+                price,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
 
@@ -968,11 +752,13 @@ class _PublicPackageCard extends StatelessWidget {
               children: [
                 const Icon(Icons.image, size: 15, color: Color(0xFF5D5E66)),
                 const SizedBox(width: 4),
-                Text(
-                  '${package.photoCount} ảnh chỉnh sửa',
-                  style: const TextStyle(
-                    color: Color(0xFF5F5E60),
-                    fontSize: 12,
+                Flexible(
+                  child: Text(
+                    '${package.photoCount} ảnh, ${package.retouchedPhotoCount} ảnh chỉnh sửa',
+                    style: const TextStyle(
+                      color: Color(0xFF5F5E60),
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -991,54 +777,12 @@ class _PublicPackageCard extends StatelessWidget {
                 ),
               ],
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.send, size: 15, color: Color(0xFF5D5E66)),
-                const SizedBox(width: 4),
-                Text(
-                  'Giao ${package.deliveryDays} ngày',
-                  style: const TextStyle(
-                    color: Color(0xFF5F5E60),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Button
-        SizedBox(
-          width: double.infinity,
-          height: 42,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isPopular
-                  ? const Color(0xFFFF5A00)
-                  : const Color(0xFFF3F3F4),
-              foregroundColor: isPopular
-                  ? Colors.white
-                  : const Color(0xFF1A1C1D),
-              elevation: isPopular ? 1 : 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9999),
-                side: isPopular
-                    ? BorderSide.none
-                    : const BorderSide(color: Color(0xFFEEEEEF)),
+            for (final feature in package.features)
+              Text(
+                feature,
+                style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
               ),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Đã chọn ${package.name}')),
-              );
-            },
-            child: const Text(
-              'Chọn gói này',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ),
+          ],
         ),
       ],
     ),
@@ -1113,42 +857,32 @@ class _ProfileReviewsTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Dựa trên ${profile.reviewCount} lượt đánh giá đã xác thực',
+                  'Từ ${profile.reviewCount} đánh giá',
                   style: const TextStyle(
                     color: Color(0xFF5F5E60),
                     fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 14),
-
-                // Bar chart
-                _RatingBarRow(label: '5★', ratio: 0.92, count: '35'),
-                const SizedBox(height: 6),
-                _RatingBarRow(label: '4★', ratio: 0.08, count: '3'),
-                const SizedBox(height: 6),
-                _RatingBarRow(label: '3★', ratio: 0.0, count: '0'),
               ],
             ),
           ),
           const SizedBox(height: 18),
 
           // Section Title
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
-                child: Text(
-                  'Nhận xét mới nhất',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Color(0xFF1A1C1D),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+              Text(
+                'Nhận xét mới nhất',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Color(0xFF1A1C1D),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(width: 8),
+              SizedBox(height: 4),
               Text(
                 'Sắp xếp theo gần đây',
                 style: TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
@@ -1190,166 +924,6 @@ class _ProfileReviewsTab extends ConsumerWidget {
       ),
     );
   }
-}
-
-class _RatingBarRow extends StatelessWidget {
-  const _RatingBarRow({
-    required this.label,
-    required this.ratio,
-    required this.count,
-  });
-
-  final String label;
-  final double ratio;
-  final String count;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      SizedBox(
-        width: 22,
-        child: Text(
-          label,
-          style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 11),
-        ),
-      ),
-      const SizedBox(width: 8),
-      Expanded(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(9999),
-          child: Container(
-            height: 8,
-            color: const Color(0xFFEEEEEF),
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: ratio,
-              child: Container(color: const Color(0xFFFF5A00)),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 8),
-      SizedBox(
-        width: 22,
-        child: Text(
-          count,
-          textAlign: TextAlign.end,
-          style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 11),
-        ),
-      ),
-    ],
-  );
-}
-
-// ============================================================================
-// 6. STICKY BOTTOM CLIENT BAR
-// ============================================================================
-class _StickyBottomClientBar extends StatelessWidget {
-  const _StickyBottomClientBar({required this.profile});
-
-  final Photographer profile;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: EdgeInsets.fromLTRB(
-      16,
-      10,
-      16,
-      MediaQuery.of(context).padding.bottom + 8,
-    ),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.95),
-      border: const Border(top: BorderSide(color: Color(0xFFEEEEEF))),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0A000000),
-          blurRadius: 16,
-          offset: Offset(0, -4),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          flex: 1,
-          child: SizedBox(
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Đang mở tin nhắn tư vấn với ${profile.name}...',
-                    ),
-                  ),
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF1A1C1D),
-                side: const BorderSide(color: Color(0xFFEEEEEF)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9999),
-                ),
-              ),
-              icon: const Icon(
-                Icons.chat_bubble_outline,
-                size: 18,
-                color: Color(0xFF5F5E60),
-              ),
-              label: const FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'Nhắn tin tư vấn',
-                  maxLines: 1,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          flex: 1,
-          child: SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Vui lòng chọn một gói chụp để tiến hành đặt lịch',
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF5A00),
-                foregroundColor: Colors.white,
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9999),
-                ),
-              ),
-              icon: const Icon(
-                Icons.calendar_month,
-                size: 18,
-                color: Colors.white,
-              ),
-              label: const FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'Đặt lịch ngay',
-                  maxLines: 1,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 // ============================================================================

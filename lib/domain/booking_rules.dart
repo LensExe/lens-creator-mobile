@@ -37,14 +37,20 @@ class BookingRules {
 
   static bool canTransition(BookingStatus from, BookingStatus to) =>
       from == BookingStatus.pending &&
-      (to == BookingStatus.confirmed || to == BookingStatus.cancelled);
+      (to == BookingStatus.accepted || to == BookingStatus.rejected);
 
   static String statusLabel(BookingStatus status) => switch (status) {
     BookingStatus.awaitingDeposit => 'Chờ đặt cọc',
     BookingStatus.pending => 'Chờ xác nhận',
-    BookingStatus.confirmed => 'Chờ thanh toán',
-    BookingStatus.held => 'Sàn đang giữ tiền',
+    BookingStatus.confirmed => 'Đã xác nhận',
+    BookingStatus.held => 'Đang thực hiện',
     BookingStatus.released => 'Hoàn thành',
     BookingStatus.cancelled => 'Đã huỷ',
+    BookingStatus.accepted => 'Đã chấp nhận',
+    BookingStatus.rejected => 'Đã từ chối',
+    BookingStatus.expired => 'Hết hạn',
+    BookingStatus.inProgress => 'Đang chụp',
+    BookingStatus.shot => 'Đã chụp · Chờ bàn giao',
+    BookingStatus.completed => 'Hoàn thành',
   };
 }

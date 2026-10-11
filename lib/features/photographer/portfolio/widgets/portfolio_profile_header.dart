@@ -139,30 +139,6 @@ class PortfolioProfileHeader extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          bottom: 2,
-                          right: 2,
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF5A00),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0x20000000),
-                                  blurRadius: 3,
-                                  offset: Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.verified,
-                              size: 13,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
 

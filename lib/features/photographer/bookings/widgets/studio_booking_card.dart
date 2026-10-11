@@ -34,8 +34,8 @@ class StudioBookingCard extends StatelessWidget {
     onDecide: onDecide,
     onMessage: onMessage,
     onGallery:
-        booking.status == BookingStatus.held ||
-            booking.status == BookingStatus.released
+        booking.status == BookingStatus.shot ||
+            booking.status == BookingStatus.completed
         ? () => context.push('/photographer_home/booking/${booking.id}/gallery')
         : null,
   );

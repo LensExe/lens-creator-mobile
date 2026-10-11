@@ -61,10 +61,21 @@ class MoreBottomSheet extends ConsumerWidget {
             icon: Icons.logout_rounded,
             title: 'Đăng xuất',
             trailing: const SizedBox.shrink(),
-            onTap: () {
+            onTap: () async {
               final router = GoRouter.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
-              ref.read(authUserProvider.notifier).setUser(null);
+              try {
+                await ref.read(authUserProvider.notifier).logout();
+              } catch (error) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Đã đăng xuất trên thiết bị này, nhưng máy chủ chưa thể thu hồi phiên: $error',
+                    ),
+                  ),
+                );
+              }
               router.go('/login');
             },
           ),

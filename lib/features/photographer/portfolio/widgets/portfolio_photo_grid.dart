@@ -8,12 +8,12 @@ class PortfolioPhotoGrid extends StatelessWidget {
     super.key,
     required this.photos,
     this.onRemove,
-    this.styles = const [],
+    this.onMove,
   });
 
   final List<String> photos;
   final ValueChanged<int>? onRemove;
-  final List<String> styles;
+  final void Function(int index, int delta)? onMove;
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +38,6 @@ class PortfolioPhotoGrid extends StatelessWidget {
             childAspectRatio: 0.8,
           ),
           itemBuilder: (context, index) {
-            final category = styles.isNotEmpty
-                ? styles[index % styles.length]
-                : 'Tác phẩm';
-            final title = 'Tác phẩm #${index + 1}';
-
             return ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Container(
@@ -79,42 +74,33 @@ class PortfolioPhotoGrid extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // Top Right Button
+                    // Actions
                     Positioned(
                       top: 7,
                       right: 7,
-                      child: onRemove != null
-                          ? Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                tooltip: 'Xoá ảnh',
-                                padding: EdgeInsets.zero,
-                                onPressed: () => onRemove!(index),
-                                icon: const Icon(
-                                  Icons.delete_outline_rounded,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            )
-                          : Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.more_vert,
-                                size: 16,
-                                color: Colors.white,
-                              ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (onMove != null)
+                            _PhotoAction(
+                              tooltip: 'Đưa ảnh lên trước',
+                              icon: Icons.arrow_back_ios_new_rounded,
+                              onPressed: () => onMove!(index, -1),
                             ),
+                          if (onMove != null)
+                            _PhotoAction(
+                              tooltip: 'Đưa ảnh ra sau',
+                              icon: Icons.arrow_forward_ios_rounded,
+                              onPressed: () => onMove!(index, 1),
+                            ),
+                          if (onRemove != null)
+                            _PhotoAction(
+                              tooltip: 'Xoá ảnh khỏi portfolio',
+                              icon: Icons.delete_outline_rounded,
+                              onPressed: () => onRemove!(index),
+                            ),
+                        ],
+                      ),
                     ),
                     // Bottom Info
                     Positioned(
@@ -125,22 +111,11 @@ class PortfolioPhotoGrid extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            category,
+                          const Text(
+                            'Tác phẩm',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -158,4 +133,33 @@ class PortfolioPhotoGrid extends StatelessWidget {
       },
     );
   }
+}
+
+class _PhotoAction extends StatelessWidget {
+  const _PhotoAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 28,
+    height: 28,
+    margin: const EdgeInsets.only(left: 3),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.52),
+      shape: BoxShape.circle,
+    ),
+    child: IconButton(
+      tooltip: tooltip,
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14, color: Colors.white),
+    ),
+  );
 }

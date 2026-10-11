@@ -3,7 +3,11 @@ import '../models/models.dart';
 abstract class BookingRepository {
   Future<List<Booking>> getBookings(String userId, String role);
   Future<Booking> createBooking(Booking booking);
-  Future<void> updateBookingStatus(String id, BookingStatus status);
+  Future<void> updateBookingStatus(
+    String id,
+    BookingStatus status, {
+    String? reason,
+  });
   Future<Booking> addDeliveryPhotos(String id, List<String> urls);
   Future<Booking> inviteCollaborator(
     String id,

@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/surface_card.dart';
-import '../../core/widgets/primary_button.dart';
 import '../../providers/data_providers.dart';
 import '../../domain/models/models.dart';
 
@@ -95,66 +94,6 @@ class BookingsListScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          if (b.status == BookingStatus.pending && !isCustomer)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: PrimaryButton(
-                                    text: 'Chấp nhận',
-                                    onPressed: () {
-                                      _updateBookingStatus(
-                                        ref,
-                                        b.id,
-                                        BookingStatus.confirmed,
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      _updateBookingStatus(
-                                        ref,
-                                        b.id,
-                                        BookingStatus.cancelled,
-                                      );
-                                    },
-                                    child: const Text('Từ chối'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          if (b.status == BookingStatus.confirmed && isCustomer)
-                            PrimaryButton(
-                              text: 'Thanh toán ngay',
-                              onPressed: () {
-                                _updateBookingStatus(
-                                  ref,
-                                  b.id,
-                                  BookingStatus.held,
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Thanh toán thành công!'),
-                                  ),
-                                );
-                              },
-                            ),
-                          if (b.status == BookingStatus.held && !isCustomer)
-                            PrimaryButton(
-                              text: 'Trả ảnh & Nhận tiền',
-                              onPressed: () {
-                                _updateBookingStatus(
-                                  ref,
-                                  b.id,
-                                  BookingStatus.released,
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Đã trả ảnh!')),
-                                );
-                              },
-                            ),
                         ],
                       ),
                     )
@@ -166,22 +105,27 @@ class BookingsListScreen extends ConsumerWidget {
     );
   }
 
-  void _updateBookingStatus(WidgetRef ref, String id, BookingStatus newStatus) {
-    ref.read(asyncBookingsProvider.notifier).updateBookingStatus(id, newStatus);
-  }
-
   String _getStatusText(BookingStatus status) {
     switch (status) {
       case BookingStatus.awaitingDeposit:
         return 'Chờ đặt cọc';
       case BookingStatus.pending:
         return 'Đang chờ';
+      case BookingStatus.accepted:
       case BookingStatus.confirmed:
-        return 'Đã xác nhận (Chờ thanh toán)';
+        return 'Đã chấp nhận';
+      case BookingStatus.inProgress:
       case BookingStatus.held:
-        return 'Đã thanh toán (Chờ chụp)';
+        return 'Đang chụp';
+      case BookingStatus.shot:
+        return 'Đã chụp';
+      case BookingStatus.completed:
       case BookingStatus.released:
         return 'Hoàn thành';
+      case BookingStatus.rejected:
+        return 'Đã từ chối';
+      case BookingStatus.expired:
+        return 'Hết hạn';
       case BookingStatus.cancelled:
         return 'Đã hủy';
     }
@@ -193,12 +137,19 @@ class BookingsListScreen extends ConsumerWidget {
         return Colors.orange;
       case BookingStatus.pending:
         return Colors.amber;
+      case BookingStatus.accepted:
       case BookingStatus.confirmed:
         return Colors.blue;
+      case BookingStatus.inProgress:
       case BookingStatus.held:
         return Colors.purple;
+      case BookingStatus.shot:
+        return Colors.indigo;
+      case BookingStatus.completed:
       case BookingStatus.released:
         return Colors.green;
+      case BookingStatus.rejected:
+      case BookingStatus.expired:
       case BookingStatus.cancelled:
         return Colors.red;
     }

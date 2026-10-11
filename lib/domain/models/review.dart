@@ -7,6 +7,9 @@ class Review {
     required this.rating,
     required this.comment,
     required this.date,
+    this.photographerReply,
+    this.punctualityRating,
+    this.attitudeRating,
   });
 
   final String id;
@@ -16,6 +19,9 @@ class Review {
   final double rating;
   final String comment;
   final String date;
+  final String? photographerReply;
+  final double? punctualityRating;
+  final double? attitudeRating;
 }
 
 class ReviewSummary {

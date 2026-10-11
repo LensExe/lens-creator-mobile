@@ -13,14 +13,19 @@ class CreatorStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (foreground, background) = switch (status) {
-      BookingStatus.pending ||
-      BookingStatus.held => (AppColors.ember, AppColors.emberSoft),
-      BookingStatus.released => (
+      BookingStatus.pending => (AppColors.ember, AppColors.emberSoft),
+      BookingStatus.accepted ||
+      BookingStatus.confirmed ||
+      BookingStatus.inProgress ||
+      BookingStatus.held ||
+      BookingStatus.shot => (AppColors.ink, AppColors.mist),
+      BookingStatus.completed || BookingStatus.released => (
         const Color(0xFF087443),
         AppColors.successSoft,
       ),
+      BookingStatus.rejected ||
+      BookingStatus.expired ||
       BookingStatus.awaitingDeposit ||
-      BookingStatus.confirmed ||
       BookingStatus.cancelled => (AppColors.slate, AppColors.mist),
     };
     return Container(

@@ -2,18 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/creator_avatar.dart';
 import '../../core/widgets/creator_empty_state.dart';
 import '../../core/widgets/creator_loading_state.dart';
-import '../../domain/booking_rules.dart';
+import '../../data/repositories/api_booking_repository.dart';
 import '../../domain/models/models.dart';
 import '../../providers/data_providers.dart';
-import 'bookings/widgets/collaborators_panel.dart';
 import 'bookings/widgets/studio_booking_card.dart' show formatDong;
-import 'messages/conversation_navigation.dart';
 
 class BookingRequestDetailScreen extends ConsumerStatefulWidget {
   const BookingRequestDetailScreen({super.key, required this.bookingId});
@@ -29,18 +27,23 @@ class _BookingRequestDetailScreenState
   bool deciding = false;
 
   Future<void> _decide(Booking booking, BookingStatus status) async {
+    final reason = status == BookingStatus.rejected
+        ? await _askRejectReason()
+        : null;
+    if (!mounted) return;
+    if (status == BookingStatus.rejected && reason == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          status == BookingStatus.confirmed
+          status == BookingStatus.accepted
               ? 'Xác nhận lịch chụp?'
               : 'Từ chối yêu cầu?',
         ),
         content: Text(
-          status == BookingStatus.confirmed
-              ? 'Khách sẽ được thông báo để thanh toán phần còn lại.'
-              : 'Tiền cọc ${formatDong(booking.depositAmount)} sẽ được hoàn đầy đủ cho khách.',
+          status == BookingStatus.accepted
+              ? 'Backend sẽ kiểm tra trạng thái thanh toán và xung đột lịch trước khi chấp nhận.'
+              : 'Lý do từ chối sẽ được lưu vào lịch sử booking.',
         ),
         actions: [
           TextButton(
@@ -50,7 +53,7 @@ class _BookingRequestDetailScreenState
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              status == BookingStatus.confirmed ? 'Xác nhận' : 'Từ chối',
+              status == BookingStatus.accepted ? 'Xác nhận' : 'Từ chối',
             ),
           ),
         ],
@@ -61,14 +64,16 @@ class _BookingRequestDetailScreenState
     try {
       await ref
           .read(asyncBookingsProvider.notifier)
-          .updateBookingStatus(booking.id, status);
+          .updateBookingStatus(booking.id, status, reason: reason);
+      ref.invalidate(creatorBookingDetailProvider(booking.id));
+      ref.invalidate(creatorBookingTimelineProvider(booking.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              status == BookingStatus.confirmed
-                  ? 'Đã xác nhận lịch chụp'
-                  : 'Đã từ chối và hoàn cọc',
+              status == BookingStatus.accepted
+                  ? 'Backend đã chấp nhận booking'
+                  : 'Backend đã ghi nhận việc từ chối',
             ),
           ),
         );
@@ -83,9 +88,101 @@ class _BookingRequestDetailScreenState
     }
   }
 
+  Future<String?> _askRejectReason() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lý do từ chối'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 10000,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'Nhập lý do'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(dialogContext, controller.text.trim());
+              }
+            },
+            child: const Text('Từ chối booking'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
+  }
+
+  Future<void> _advanceLifecycle(Booking booking, BookingStatus status) async {
+    final isStarting = status == BookingStatus.inProgress;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isStarting ? 'Bắt đầu buổi chụp?' : 'Xác nhận đã chụp?'),
+        content: Text(
+          isStarting
+              ? 'Backend sẽ xác nhận điều kiện thanh toán trước khi chuyển booking sang đang chụp.'
+              : 'Backend sẽ ghi nhận buổi chụp hoàn tất. Sau đó bạn có thể quản lý gallery cho booking này.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Quay lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(isStarting ? 'Bắt đầu' : 'Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => deciding = true);
+    try {
+      await ref
+          .read(asyncBookingsProvider.notifier)
+          .updateBookingStatus(booking.id, status);
+      ref.invalidate(creatorBookingDetailProvider(booking.id));
+      ref.invalidate(creatorBookingTimelineProvider(booking.id));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isStarting
+                  ? 'Backend đã ghi nhận bắt đầu buổi chụp.'
+                  : 'Backend đã ghi nhận buổi chụp hoàn tất.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backend chưa cập nhật booking: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => deciding = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bookings = ref.watch(incomingBookingsProvider);
+    final bookingState = ref.watch(
+      creatorBookingDetailProvider(widget.bookingId),
+    );
+    final timelineState = ref.watch(
+      creatorBookingTimelineProvider(widget.bookingId),
+    );
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FA),
       appBar: AppBar(
@@ -130,12 +227,6 @@ class _BookingRequestDetailScreenState
                     ),
                   );
                 }
-              } else if (value == 'invoice') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Tính năng tải hoá đơn VAT sẽ sớm khả dụng'),
-                  ),
-                );
               }
             },
             itemBuilder: (context) => [
@@ -153,48 +244,21 @@ class _BookingRequestDetailScreenState
                   ],
                 ),
               ),
-              const PopupMenuItem(
-                value: 'invoice',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.receipt_long_outlined,
-                      size: 18,
-                      color: Color(0xFF5F5E60),
-                    ),
-                    SizedBox(width: 10),
-                    Text('Tải hoá đơn VAT / Phiếu thu'),
-                  ],
-                ),
-              ),
             ],
           ),
         ],
       ),
-      body: bookings.when(
+      body: bookingState.when(
         loading: () =>
             const CreatorLoadingState(label: 'Đang tải thông tin buổi chụp…'),
         error: (error, _) => CreatorEmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Không thể tải lịch chụp',
           actionLabel: 'Thử lại',
-          onAction: () => ref.invalidate(asyncBookingsProvider),
+          onAction: () =>
+              ref.invalidate(creatorBookingDetailProvider(widget.bookingId)),
         ),
-        data: (items) {
-          Booking? booking;
-          for (final item in items) {
-            if (item.id == widget.bookingId) {
-              booking = item;
-              break;
-            }
-          }
-          if (booking == null) {
-            return const CreatorEmptyState(
-              icon: Icons.event_busy_outlined,
-              title: 'Không tìm thấy lịch chụp',
-            );
-          }
-          final b = booking;
+        data: (b) {
           final date = DateTime.tryParse(b.date);
 
           return Center(
@@ -214,50 +278,33 @@ class _BookingRequestDetailScreenState
                     _DecisionPanel(
                       booking: b,
                       busy: deciding,
-                      onDecline: () => _decide(b, BookingStatus.cancelled),
-                      onAccept: () => _decide(b, BookingStatus.confirmed),
+                      onDecline: () => _decide(b, BookingStatus.rejected),
+                      onAccept: () => _decide(b, BookingStatus.accepted),
                     ),
                     const SizedBox(height: 14),
-                  ] else if (b.status == BookingStatus.confirmed) ...[
-                    const _StatusNoticeCard(
-                      icon: Icons.hourglass_top_rounded,
-                      text: 'Đang chờ khách thanh toán phần còn lại.',
+                  ] else if (b.status == BookingStatus.accepted) ...[
+                    _LifecycleActionCard(
+                      title: 'Booking đã được chấp nhận',
+                      description: 'Backend sẽ kiểm tra khoản cọc khi bắt đầu buổi chụp.',
+                      actionLabel: 'Bắt đầu buổi chụp',
+                      busy: deciding,
+                      onPressed: () =>
+                          _advanceLifecycle(b, BookingStatus.inProgress),
+                    ),
+                    const SizedBox(height: 14),
+                  ] else if (b.status == BookingStatus.inProgress) ...[
+                    _LifecycleActionCard(
+                      title: 'Buổi chụp đang diễn ra',
+                      description: 'Sau khi hoàn tất buổi chụp, cập nhật trạng thái để mở gallery bàn giao.',
+                      actionLabel: 'Xác nhận đã chụp',
+                      busy: deciding,
+                      onPressed: () => _advanceLifecycle(b, BookingStatus.shot),
                     ),
                     const SizedBox(height: 14),
                   ],
 
-                  // 3. Quick Contact Strip
-                  _QuickContactStrip(
-                    booking: b,
-                    onCall: () {
-                      if (b.contactPhone?.isNotEmpty == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Số điện thoại: ${b.contactPhone}'),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Chưa có số điện thoại khách hàng'),
-                          ),
-                        );
-                      }
-                    },
-                    onMessage: () => openClientConversation(context, ref, b),
-                    onDownloadInvoice: () => ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Tính năng tải hoá đơn VAT sẽ sớm khả dụng',
-                            ),
-                          ),
-                        ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // 4. Delivery Progress
-                  if (b.status != BookingStatus.cancelled) ...[
+                  if (b.status == BookingStatus.shot ||
+                      b.status == BookingStatus.completed) ...[
                     _DeliveryProgressCard(
                       booking: b,
                       onManage: () => context.push(
@@ -267,24 +314,17 @@ class _BookingRequestDetailScreenState
                     const SizedBox(height: 14),
                   ],
 
-                  // Collaborator Invitation Panel (for confirmed/held shoots)
-                  if ((b.status == BookingStatus.confirmed ||
-                          b.status == BookingStatus.held) &&
-                      b.deliveredPhotos == 0) ...[
-                    CollaboratorsPanel(booking: b),
-                    const SizedBox(height: 14),
-                  ],
-
-                  // 5. Payment & Payout Summary
-                  _PaymentPayoutSummaryCard(booking: b),
+                  _BookingAmountsCard(booking: b),
                   const SizedBox(height: 14),
 
-                  // 6. Additional Details
                   _AdditionalDetailsCard(booking: b),
                   const SizedBox(height: 14),
 
-                  // 7. Booking Timeline
-                  _BookingTimelineCard(booking: b, date: date),
+                  _BookingTimelineCard(
+                    state: timelineState,
+                    onRetry: () =>
+                        ref.invalidate(creatorBookingTimelineProvider(b.id)),
+                  ),
                 ],
               ),
             ),
@@ -548,29 +588,44 @@ class _BookingStatusPill extends StatelessWidget {
         dot = const Color(0xFFF59E0B);
         label = 'Chờ đặt cọc';
         break;
+      case BookingStatus.accepted:
       case BookingStatus.confirmed:
         bg = const Color(0xFFE9F6EF);
         text = const Color(0xFF047857);
         dot = const Color(0xFF10B981);
-        label = 'Đã xác nhận';
+        label = 'Đã chấp nhận';
         break;
+      case BookingStatus.inProgress:
       case BookingStatus.held:
         bg = const Color(0xFFEFF6FF);
         text = const Color(0xFF1D4ED8);
         dot = const Color(0xFF3B82F6);
-        label = 'Đang thực hiện';
+        label = 'Đang chụp';
         break;
+      case BookingStatus.shot:
+        bg = const Color(0xFFEFF6FF);
+        text = const Color(0xFF1D4ED8);
+        dot = const Color(0xFF3B82F6);
+        label = 'Đã chụp';
+        break;
+      case BookingStatus.completed:
       case BookingStatus.released:
         bg = const Color(0xFFE9F6EF);
         text = const Color(0xFF047857);
         dot = const Color(0xFF10B981);
-        label = 'Đã hoàn thành';
+        label = 'Hoàn thành';
         break;
+      case BookingStatus.rejected:
+      case BookingStatus.expired:
       case BookingStatus.cancelled:
         bg = const Color(0xFFEEEEEE);
         text = const Color(0xFF6B7280);
         dot = const Color(0xFF9CA3AF);
-        label = 'Đã huỷ';
+        label = switch (status) {
+          BookingStatus.rejected => 'Đã từ chối',
+          BookingStatus.expired => 'Hết hạn',
+          _ => 'Đã huỷ',
+        };
         break;
     }
 
@@ -659,16 +714,8 @@ class _DecisionPanel extends StatelessWidget {
                   Text.rich(
                     TextSpan(
                       children: [
-                        const TextSpan(text: 'Khách hàng đã đặt cọc '),
-                        TextSpan(
-                          text: formatDong(booking.depositAmount),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1C1D),
-                          ),
-                        ),
                         const TextSpan(
-                          text: ' qua LENS Escrow. Vui lòng phản hồi sớm để hoàn tất xác nhận lịch.',
+                          text: 'Backend kiểm tra khoản cọc và xung đột lịch khi chấp nhận booking. Nếu chưa đủ điều kiện, thao tác sẽ trả lỗi để bạn xử lý.',
                         ),
                       ],
                     ),
@@ -761,56 +808,22 @@ class _DecisionPanel extends StatelessWidget {
 }
 
 // ============================================================================
-// STATUS NOTICE CARD (For Confirmed State)
+// BOOKING LIFECYCLE ACTIONS
 // ============================================================================
-class _StatusNoticeCard extends StatelessWidget {
-  const _StatusNoticeCard({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFEEEEEF)),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: const Color(0xFFFF5A00)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF5F5E60),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-// ============================================================================
-// 3. QUICK CONTACT STRIP
-// ============================================================================
-class _QuickContactStrip extends StatelessWidget {
-  const _QuickContactStrip({
-    required this.booking,
-    required this.onCall,
-    required this.onMessage,
-    required this.onDownloadInvoice,
+class _LifecycleActionCard extends StatelessWidget {
+  const _LifecycleActionCard({
+    required this.title,
+    required this.description,
+    required this.actionLabel,
+    required this.busy,
+    required this.onPressed,
   });
 
-  final Booking booking;
-  final VoidCallback onCall;
-  final VoidCallback onMessage;
-  final VoidCallback onDownloadInvoice;
+  final String title;
+  final String description;
+  final String actionLabel;
+  final bool busy;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -819,127 +832,31 @@ class _QuickContactStrip extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFEEEEEF)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x06000000),
-          blurRadius: 6,
-          offset: Offset(0, 2),
-        ),
-      ],
     ),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 44,
-                child: InkWell(
-                  onTap: onCall,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F3F4),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.call_outlined,
-                          size: 18,
-                          color: Color(0xFF5F5E60),
-                        ),
-                        SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Gọi khách',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Color(0xFF1A1C1D),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: SizedBox(
-                height: 44,
-                child: InkWell(
-                  onTap: onMessage,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFDBCF),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble,
-                          size: 17,
-                          color: Color(0xFF802900),
-                        ),
-                        SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Nhắn tin',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Color(0xFF802900),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 5),
+        Text(
+          description,
+          style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
         ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: onDownloadInvoice,
-          borderRadius: BorderRadius.circular(8),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 16,
-                  color: Color(0xFF5F5E60),
-                ),
-                SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'Tải hoá đơn VAT / Phiếu thu (.PDF)',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF5F5E60),
-                      decoration: TextDecoration.underline,
-                      decorationColor: Color(0xFF5F5E60),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: busy ? null : onPressed,
+            child: busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-                  ),
-                ),
-              ],
-            ),
+                  )
+                : Text(actionLabel),
           ),
         ),
       ],
@@ -948,7 +865,7 @@ class _QuickContactStrip extends StatelessWidget {
 }
 
 // ============================================================================
-// 4. DELIVERY PROGRESS
+// DELIVERY GALLERY ENTRY
 // ============================================================================
 class _DeliveryProgressCard extends StatelessWidget {
   const _DeliveryProgressCard({required this.booking, required this.onManage});
@@ -958,126 +875,28 @@ class _DeliveryProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final promised = booking.promisedPhotos ?? 35;
-    final delivered = booking.deliveredPhotos;
-    final ratio = promised > 0 ? (delivered / promised).clamp(0.0, 1.0) : 0.0;
-
+    final canManage = booking.status == BookingStatus.shot;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEEEEEF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.cloud_upload_outlined,
-                      size: 20,
-                      color: Color(0xFFFF5A00),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Tiến độ bàn giao',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Color(0xFF1A1C1D),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '$delivered / $promised ảnh',
-                style: const TextStyle(
-                  color: Color(0xFF5F5E60),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(9999),
-            child: Container(
-              height: 8,
-              width: double.infinity,
-              color: const Color(0xFFEEEEEF),
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: ratio,
-                child: Container(color: const Color(0xFFFF5A00)),
-              ),
+          const Icon(Icons.photo_library_outlined, color: Color(0xFFFF5A00)),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Gallery được quản lý và công bố qua Backend cho booking này.',
+              style: TextStyle(color: Color(0xFF5F5E60), fontSize: 12),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Footer
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Giao ảnh sau buổi chụp qua thư viện LENS',
-                  style: TextStyle(color: Color(0xFF5F5E60), fontSize: 11),
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: onManage,
-                borderRadius: BorderRadius.circular(9999),
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F3F4),
-                    borderRadius: BorderRadius.circular(9999),
-                    border: Border.all(color: const Color(0xFFEEEEEF)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Quản lý giao ảnh',
-                        style: TextStyle(
-                          color: Color(0xFF1A1C1D),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        size: 13,
-                        color: Color(0xFF1A1C1D),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onManage,
+            child: Text(canManage ? 'Quản lý gallery' : 'Mở gallery'),
           ),
         ],
       ),
@@ -1088,184 +907,49 @@ class _DeliveryProgressCard extends StatelessWidget {
 // ============================================================================
 // 5. PAYMENT & PAYOUT SUMMARY
 // ============================================================================
-class _PaymentPayoutSummaryCard extends StatelessWidget {
-  const _PaymentPayoutSummaryCard({required this.booking});
+class _BookingAmountsCard extends StatelessWidget {
+  const _BookingAmountsCard({required this.booking});
 
   final Booking booking;
 
   @override
-  Widget build(BuildContext context) {
-    final remaining = (booking.price - booking.depositAmount).clamp(
-      0,
-      booking.price,
-    );
-    final platformFee = BookingRules.commission(booking.price);
-    final payout = BookingRules.payoutFor(booking, booking.photographerId);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFEEEEEF)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Giá trị booking',
+          style: TextStyle(
+            color: Color(0xFF1A1C1D),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.account_balance_wallet_outlined,
-                size: 20,
-                color: Color(0xFFFF5A00),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Thanh toán & Thu nhập',
-                style: TextStyle(
-                  color: Color(0xFF1A1C1D),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFEEEEEF)),
-          const SizedBox(height: 10),
+        ),
+        const SizedBox(height: 12),
+        _amountRow('Tổng giá trị', formatDong(booking.price)),
+        const SizedBox(height: 8),
+        _amountRow('Mức cọc yêu cầu', formatDong(booking.depositAmount)),
+        const SizedBox(height: 8),
+        const Text(
+          'Trạng thái thanh toán và số tiền đã thu không có trong response booking này.',
+          style: TextStyle(color: Color(0xFF71717A), fontSize: 11, height: 1.4),
+        ),
+      ],
+    ),
+  );
 
-          // Total
-          _buildPaymentRow(
-            label: 'Tổng giá trị đơn',
-            value: formatDong(booking.price),
-            valueColor: const Color(0xFF1A1C1D),
-          ),
-          const SizedBox(height: 8),
-
-          // Deposit
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Đã đặt cọc (Escrow giữ)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Color(0xFF5F5E60),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.lock_outline,
-                      size: 14,
-                      color: Color(0xFFA83900),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                formatDong(booking.depositAmount),
-                style: const TextStyle(
-                  color: Color(0xFFA83900),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Remaining
-          _buildPaymentRow(
-            label: 'Thu còn lại khi giao ảnh',
-            value: formatDong(remaining),
-            valueColor: const Color(0xFF1A1C1D),
-          ),
-          const SizedBox(height: 8),
-
-          // Platform Fee
-          _buildPaymentRow(
-            label: 'Phí nền tảng (10%)',
-            value: '-${formatDong(platformFee)}',
-            valueColor: const Color(0xFF5F5E60),
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFEEEEEF)),
-          const SizedBox(height: 10),
-
-          // Net Payout
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              const Expanded(
-                child: Text(
-                  'Thực nhận sau nghiệm thu',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Color(0xFF1A1C1D),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                formatDong(payout),
-                style: const TextStyle(
-                  color: Color(0xFFFF5A00),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentRow({
-    required String label,
-    required String value,
-    required Color valueColor,
-  }) => Row(
+  Widget _amountRow(String label, String value) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      Expanded(
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Color(0xFF5F5E60), fontSize: 13),
-        ),
-      ),
+      Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
       const SizedBox(width: 8),
-      Text(
-        value,
-        style: TextStyle(
-          color: valueColor,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+      Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
     ],
   );
 }
@@ -1285,205 +969,36 @@ class _AdditionalDetailsCard extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: const Color(0xFFEEEEEF)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x06000000),
-          blurRadius: 6,
-          offset: Offset(0, 2),
-        ),
-      ],
     ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    child: Row(
       children: [
-        const Row(
-          children: [
-            Icon(Icons.info_outline, size: 20, color: Color(0xFFFF5A00)),
-            SizedBox(width: 8),
-            Text(
-              'Thông tin bổ sung',
-              style: TextStyle(
-                color: Color(0xFF1A1C1D),
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        const Expanded(
+          child: Text(
+            'Mã booking',
+            style: TextStyle(color: Color(0xFF5F5E60), fontSize: 13),
+          ),
         ),
-        const SizedBox(height: 10),
-        const Divider(height: 1, color: Color(0xFFEEEEEF)),
-        const SizedBox(height: 10),
-
-        // Booking ID with Copy
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Text(
-                'Mã đơn đặt',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Color(0xFF5F5E60), fontSize: 13),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Row(
-              children: [
-                Text(
-                  '#${booking.id}',
-                  style: const TextStyle(
-                    color: Color(0xFF1A1C1D),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                InkWell(
-                  borderRadius: BorderRadius.circular(4),
-                  onTap: () async {
-                    await Clipboard.setData(ClipboardData(text: booking.id));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã sao chép mã đơn!')),
-                      );
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.content_copy,
-                      size: 15,
-                      color: Color(0xFF5F5E60),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            booking.id,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ),
-        const SizedBox(height: 10),
-
-        // Phone
-        if (booking.contactPhone != null) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Text(
-                  'Số điện thoại',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Color(0xFF5F5E60), fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _maskPhone(booking.contactPhone!),
-                style: const TextStyle(
-                  color: Color(0xFF1A1C1D),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-        ],
-
-        // Turnaround time
-        if (booking.deliveryDays != null) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Text(
-                  'Hạn bàn giao cam kết',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Color(0xFF5F5E60), fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${booking.deliveryDays} ngày sau buổi chụp',
-                style: const TextStyle(
-                  color: Color(0xFF1A1C1D),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-        ],
-
-        // Promised Photos
-        if (booking.promisedPhotos != null) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Text(
-                  'Số ảnh cam kết',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Color(0xFF5F5E60), fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${booking.promisedPhotos} ảnh',
-                style: const TextStyle(
-                  color: Color(0xFF1A1C1D),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-        ],
-
-        // Customer Note
-        if (booking.note?.isNotEmpty == true) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F3F4),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.edit_note, size: 16, color: Color(0xFF5F5E60)),
-                    SizedBox(width: 4),
-                    Text(
-                      'Ghi chú từ khách:',
-                      style: TextStyle(
-                        color: Color(0xFF5F5E60),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '“${booking.note}”',
-                  style: const TextStyle(
-                    color: Color(0xFF1A1C1D),
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        IconButton(
+          tooltip: 'Sao chép mã booking',
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: booking.id));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Đã sao chép mã booking.')),
+              );
+            }
+          },
+          icon: const Icon(Icons.content_copy, size: 16),
+        ),
       ],
     ),
   );
@@ -1493,249 +1008,114 @@ class _AdditionalDetailsCard extends StatelessWidget {
 // 7. BOOKING TIMELINE
 // ============================================================================
 class _BookingTimelineCard extends StatelessWidget {
-  const _BookingTimelineCard({required this.booking, required this.date});
+  const _BookingTimelineCard({required this.state, required this.onRetry});
 
-  final Booking booking;
-  final DateTime? date;
+  final AsyncValue<List<BookingTimelineEntry>> state;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFEEEEEF)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.timeline, size: 20, color: Color(0xFFFF5A00)),
+            SizedBox(width: 8),
+            Text(
+              'Lịch sử booking',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        state.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (_, _) => Row(
+            children: [
+              const Expanded(child: Text('Không tải được lịch sử từ Backend.')),
+              TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+            ],
+          ),
+          data: (entries) => entries.isEmpty
+              ? const Text('Backend chưa có bản ghi lịch sử cho booking này.')
+              : Column(
+                  children: [
+                    for (final entry in entries)
+                      _TimelineEntryTile(entry: entry),
+                  ],
+                ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _TimelineEntryTile extends StatelessWidget {
+  const _TimelineEntryTile({required this.entry});
+
+  final BookingTimelineEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    final payout = BookingRules.payoutFor(booking, booking.photographerId);
+    final from = entry.fromStatus.isEmpty
+        ? null
+        : _timelineStatusLabel(entry.fromStatus);
+    final title = from == null
+        ? 'Tạo booking · ${_timelineStatusLabel(entry.toStatus)}'
+        : '$from → ${_timelineStatusLabel(entry.toStatus)}';
+    final date = entry.createdAt;
+    final timestamp = date == null
+        ? 'Thời gian không có trong response'
+        : DateFormat('dd/MM/yyyy HH:mm').format(date);
+    final actor = switch (entry.actorRole) {
+      'customer' => 'Khách hàng',
+      'photographer' => 'Nhiếp ảnh gia',
+      'admin' => 'Quản trị viên',
+      'system' => 'Hệ thống',
+      _ => 'Backend',
+    };
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.timeline, size: 20, color: Color(0xFFFF5A00)),
-              SizedBox(width: 8),
-              Text(
-                'Tiến trình lịch chụp',
-                style: TextStyle(
-                  color: Color(0xFF1A1C1D),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFEEEEEF)),
-          const SizedBox(height: 14),
-
-          // Step 1: Deposit
-          _buildTimelineStep(
-            isLast: false,
-            isCompleted: booking.status != BookingStatus.awaitingDeposit,
-            isActive: booking.status == BookingStatus.awaitingDeposit,
-            title:
-                'Đặt cọc Escrow thành công (${formatDong(booking.depositAmount)})',
-            badgeText: booking.status != BookingStatus.awaitingDeposit
-                ? 'Xong'
-                : 'Chờ',
-            subtitle: 'Đã hoàn tất thanh toán cọc',
-          ),
-
-          // Step 2: Confirmation
-          _buildTimelineStep(
-            isLast: false,
-            isCompleted:
-                booking.status == BookingStatus.confirmed ||
-                booking.status == BookingStatus.held ||
-                booking.status == BookingStatus.released,
-            isActive: booking.status == BookingStatus.pending,
-            isCancelled: booking.status == BookingStatus.cancelled,
-            title: booking.status == BookingStatus.cancelled
-                ? 'Lịch chụp đã bị từ chối / huỷ'
-                : (booking.status == BookingStatus.pending
-                      ? 'Đang chờ studio xác nhận'
-                      : 'Studio đã xác nhận lịch'),
-            badgeText: booking.status == BookingStatus.pending
-                ? 'Đang chờ'
-                : (booking.status == BookingStatus.cancelled
-                      ? 'Đã huỷ'
-                      : 'Xong'),
-            subtitle: booking.status == BookingStatus.pending
-                ? 'Hiện tại'
-                : (booking.status == BookingStatus.cancelled
-                      ? 'Đã hoàn cọc cho khách'
-                      : 'Đã chấp nhận yêu cầu'),
-          ),
-
-          // Step 3: Shooting Session
-          _buildTimelineStep(
-            isLast: false,
-            isCompleted: booking.status == BookingStatus.released,
-            isActive: booking.status == BookingStatus.held,
-            title: booking.status == BookingStatus.held
-                ? 'Đang thực hiện & chuẩn bị giao ảnh'
-                : (booking.status == BookingStatus.released
-                      ? 'Đã thực hiện buổi chụp'
-                      : 'Thực hiện buổi chụp'),
-            badgeText: booking.status == BookingStatus.held
-                ? 'Đang chụp'
-                : (booking.status == BookingStatus.released ? 'Xong' : null),
-            subtitle: 'Dự kiến ${_formatVietnameseDate(date, booking.date)}',
-          ),
-
-          // Step 4: Release & Payout
-          _buildTimelineStep(
-            isLast: true,
-            isCompleted: booking.status == BookingStatus.released,
-            isActive: false,
-            title: 'Nghiệm thu & Giải ngân ví Studio (${formatDong(payout)})',
-            badgeText: booking.status == BookingStatus.released ? 'Xong' : null,
-            subtitle: 'Dự kiến sau bàn giao',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineStep({
-    required bool isLast,
-    required bool isCompleted,
-    required bool isActive,
-    bool isCancelled = false,
-    required String title,
-    String? badgeText,
-    required String subtitle,
-  }) {
-    Color indicatorBg;
-    Widget indicatorChild;
-
-    if (isCancelled) {
-      indicatorBg = AppColors.destructive;
-      indicatorChild = const Icon(Icons.close, size: 11, color: Colors.white);
-    } else if (isCompleted) {
-      indicatorBg = const Color(0xFFFF5A00);
-      indicatorChild = const Icon(Icons.check, size: 11, color: Colors.white);
-    } else if (isActive) {
-      indicatorBg = const Color(0xFFFF5A00);
-      indicatorChild = Container(
-        width: 6,
-        height: 6,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-      );
-    } else {
-      indicatorBg = const Color(0xFFEEEEEF);
-      indicatorChild = Container(
-        width: 6,
-        height: 6,
-        decoration: const BoxDecoration(
-          color: Color(0xFF5F5E60),
-          shape: BoxShape.circle,
-        ),
-      );
-    }
-
-    return IntrinsicHeight(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Indicator & vertical line
-          Column(
-            children: [
-              Container(
-                width: 18,
-                height: 18,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: indicatorBg,
-                  shape: BoxShape.circle,
-                ),
-                child: indicatorChild,
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(width: 2, color: const Color(0xFFEEEEEF)),
-                ),
-            ],
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Icon(Icons.circle, size: 9, color: Color(0xFFFF5A00)),
           ),
-          const SizedBox(width: 12),
-
-          // Content
+          const SizedBox(width: 10),
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: isActive
-                              ? const Color(0xFFFF5A00)
-                              : (isCompleted || isCancelled
-                                    ? const Color(0xFF1A1C1D)
-                                    : const Color(0xFF5F5E60)),
-                          fontSize: 13,
-                          fontWeight: isActive || isCompleted
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                        ),
-                      ),
-                      if (badgeText != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? const Color(0xFFFFDBCF)
-                                : (isCancelled
-                                      ? const Color(0xFFFFDAD6)
-                                      : const Color(0xFFEEEEEF)),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              color: isActive
-                                  ? const Color(0xFF802900)
-                                  : (isCancelled
-                                        ? const Color(0xFFBA1A1A)
-                                        : const Color(0xFF5F5E60)),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$actor · $timestamp',
+                  style: const TextStyle(
+                    color: Color(0xFF71717A),
+                    fontSize: 11,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF5F5E60),
-                      fontSize: 11,
-                    ),
-                  ),
+                ),
+                if (entry.reason.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text('Lý do: ${entry.reason}'),
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -1743,6 +1123,18 @@ class _BookingTimelineCard extends StatelessWidget {
     );
   }
 }
+
+String _timelineStatusLabel(String status) => switch (status) {
+  'pending' => 'Chờ xác nhận',
+  'accepted' => 'Đã chấp nhận',
+  'rejected' => 'Đã từ chối',
+  'cancelled' => 'Đã huỷ',
+  'expired' => 'Hết hạn',
+  'in_progress' => 'Đang chụp',
+  'shot' => 'Đã chụp',
+  'completed' => 'Hoàn thành',
+  _ => status,
+};
 
 // ============================================================================
 // HELPERS
@@ -1763,14 +1155,4 @@ String _formatVietnameseDate(DateTime? date, String fallback) {
   final m = date.month.toString().padLeft(2, '0');
   final y = date.year.toString();
   return '$dayName, $d/$m/$y';
-}
-
-String _maskPhone(String phone) {
-  final clean = phone.replaceAll(' ', '');
-  if (clean.length >= 8) {
-    final prefix = clean.substring(0, 4);
-    final suffix = clean.substring(clean.length - 3);
-    return '$prefix ••• $suffix';
-  }
-  return phone;
 }

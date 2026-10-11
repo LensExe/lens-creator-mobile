@@ -1,42 +1,92 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/network/auth_session_store.dart';
+import '../core/network/dio_client.dart';
+
 import '../domain/models/models.dart';
-import '../data/mock_database.dart';
-import '../data/mock_api_service.dart';
 import '../domain/booking_rules.dart';
-import '../data/datasources/mock/mock_booking_data_source.dart';
-import '../data/repositories/booking_repository_impl.dart';
+import '../data/repositories/api_booking_repository.dart';
 import '../domain/repositories/booking_repository.dart';
 import '../domain/repositories/auth_repository.dart';
-import '../domain/repositories/photographer_repository.dart';
-import '../features/auth/data/mock_auth_repository.dart';
-import '../data/datasources/mock/mock_photographer_data_source.dart';
-import '../data/repositories/photographer_repository_impl.dart';
+import '../data/repositories/api_auth_repository.dart';
+import '../data/repositories/api_auth_flow_repository.dart';
+import '../data/repositories/api_photographer_profile_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => MockAuthRepository(),
+  (ref) => ApiAuthRepository(
+    ref.watch(dioProvider),
+    ref.watch(authSessionStoreProvider),
+  ),
 );
 
-final photographerRepositoryProvider = Provider<PhotographerRepository>(
-  (ref) => PhotographerRepositoryImpl(MockPhotographerDataSource()),
+final authFlowRepositoryProvider = Provider<ApiAuthFlowRepository>(
+  (ref) => ApiAuthFlowRepository(
+    ref.watch(dioProvider),
+    ref.watch(authSessionStoreProvider),
+  ),
+);
+
+final apiPhotographerProfileRepositoryProvider =
+    Provider<ApiPhotographerProfileRepository>(
+      (ref) => ApiPhotographerProfileRepository(ref.watch(dioProvider)),
+    );
+
+final apiBookingRepositoryProvider = Provider<ApiBookingRepository>(
+  (ref) => ApiBookingRepository(ref.watch(dioProvider)),
 );
 
 final bookingRepositoryProvider = Provider<BookingRepository>(
-  (ref) => BookingRepositoryImpl(MockBookingDataSource(mockApiService)),
+  (ref) => ref.watch(apiBookingRepositoryProvider),
 );
+
+final creatorBookingDetailProvider = FutureProvider.family<Booking, String>((
+  ref,
+  bookingId,
+) {
+  final user = ref.watch(authUserProvider);
+  if (user == null || user.role != 'photographer') {
+    throw StateError('Vui lòng đăng nhập tài khoản nhiếp ảnh gia.');
+  }
+  return ref.read(apiBookingRepositoryProvider).getBooking(bookingId);
+});
+
+final creatorBookingTimelineProvider =
+    FutureProvider.family<List<BookingTimelineEntry>, String>((ref, bookingId) {
+      final user = ref.watch(authUserProvider);
+      if (user == null || user.role != 'photographer') {
+        throw StateError('Vui lòng đăng nhập tài khoản nhiếp ảnh gia.');
+      }
+      return ref.read(apiBookingRepositoryProvider).getTimeline(bookingId);
+    });
 
 class AuthUserNotifier extends Notifier<User?> {
   @override
   User? build() {
-    return MockDatabase.currentUser;
+    ref.read(authSessionStoreProvider).onSessionExpired = () => setUser(null);
+    return ref.read(initialAuthUserProvider);
   }
 
   void setUser(User? user) {
     state = user;
-    MockDatabase.currentUser = user;
     // AsyncBookingsNotifier watches authUserProvider and reloads itself when
     // the signed-in account changes. Invalidating it here creates a cycle
     // while Riverpod is already rebuilding its dependent providers.
+  }
+
+  Future<User> loginWithGoogleCode(String code) async {
+    final user = await ref
+        .read(authFlowRepositoryProvider)
+        .exchangeGoogleCode(code);
+    setUser(user);
+    return user;
+  }
+
+  Future<void> logout() async {
+    try {
+      await ref.read(authRepositoryProvider).logout();
+    } finally {
+      setUser(null);
+    }
   }
 }
 
@@ -44,41 +94,60 @@ final authUserProvider = NotifierProvider<AuthUserNotifier, User?>(
   () => AuthUserNotifier(),
 );
 
-class PhotographersNotifier extends Notifier<List<Photographer>> {
-  @override
-  List<Photographer> build() => List.of(MockDatabase.photographers);
+// No Backend directory endpoint exists for this legacy landing preview.
+final photographersProvider = Provider<List<Photographer>>((ref) => const []);
 
-  Future<void> update(Photographer photographer) async {
-    final saved = await ref
-        .read(photographerRepositoryProvider)
-        .updatePhotographer(photographer);
-    state = [
-      for (final current in state)
-        if (current.id == saved.id) saved else current,
-    ];
+class CurrentPhotographerNotifier extends Notifier<Photographer?> {
+  String? _loadingUserId;
+
+  @override
+  Photographer? build() {
+    final user = ref.watch(authUserProvider);
+    if (user == null) {
+      _loadingUserId = null;
+      return null;
+    }
+    if (_loadingUserId != user.id) {
+      _loadingUserId = user.id;
+      Future<void>.microtask(() => refresh(user.id));
+    }
+    return null;
   }
 
-  Future<void> add(Photographer photographer) async {
-    final saved = await ref
-        .read(photographerRepositoryProvider)
-        .createPhotographer(photographer);
-    state = [...state, saved];
+  Future<void> refresh([String? expectedUserId]) async {
+    final user = ref.read(authUserProvider);
+    if (user == null || (expectedUserId != null && user.id != expectedUserId)) {
+      return;
+    }
+    try {
+      final profile = await ref
+          .read(apiPhotographerProfileRepositoryProvider)
+          .getMine();
+      if (ref.read(authUserProvider)?.id == user.id) state = profile;
+    } catch (_) {
+      if (ref.read(authUserProvider)?.id == user.id) state = null;
+    }
+  }
+
+  Future<void> update(Photographer profile) async {
+    final current = state;
+    if (current == null) {
+      throw StateError('Chưa tải được hồ sơ từ Backend. Hãy thử tải lại.');
+    }
+    state = await ref
+        .read(apiPhotographerProfileRepositoryProvider)
+        .update(profile, current);
   }
 }
 
-final photographersProvider =
-    NotifierProvider<PhotographersNotifier, List<Photographer>>(
-      PhotographersNotifier.new,
+final currentPhotographerProvider =
+    NotifierProvider<CurrentPhotographerNotifier, Photographer?>(
+      CurrentPhotographerNotifier.new,
     );
 
-final myPhotographerProvider = Provider<Photographer?>((ref) {
-  final user = ref.watch(authUserProvider);
-  if (user == null) return null;
-  for (final photographer in ref.watch(photographersProvider)) {
-    if (photographer.id == user.id) return photographer;
-  }
-  return null;
-});
+final myPhotographerProvider = Provider<Photographer?>(
+  (ref) => ref.watch(currentPhotographerProvider),
+);
 
 // Using AsyncNotifier to handle API loading states
 class AsyncBookingsNotifier extends AsyncNotifier<List<Booking>> {
@@ -111,26 +180,21 @@ class AsyncBookingsNotifier extends AsyncNotifier<List<Booking>> {
 
   Future<void> updateBookingStatus(
     String bookingId,
-    BookingStatus newStatus,
-  ) async {
-    final previousState = state.value ?? [];
-
+    BookingStatus newStatus, {
+    String? reason,
+  }) async {
     try {
       await ref
           .read(bookingRepositoryProvider)
-          .updateBookingStatus(bookingId, newStatus);
-
-      // Update local state without re-fetching everything
-      final updatedList = previousState.map((b) {
-        if (b.id == bookingId) {
-          return b.copyWith(status: newStatus);
-        }
-        return b;
-      }).toList();
-
-      state = AsyncData(updatedList);
+          .updateBookingStatus(bookingId, newStatus, reason: reason);
+      final user = ref.read(authUserProvider);
+      if (user == null) throw StateError('Phiên đăng nhập đã hết hạn.');
+      final refreshed = await ref
+          .read(bookingRepositoryProvider)
+          .getBookings(user.id, user.role);
+      state = AsyncData(refreshed);
     } catch (e, stack) {
-      state = AsyncData(previousState);
+      state = AsyncError(e, stack);
       Error.throwWithStackTrace(e, stack);
     }
   }
@@ -209,12 +273,5 @@ final bookingRevisionProvider = NotifierProvider<BookingRevisionNotifier, int>(
 
 final myCollaborationsProvider = Provider<List<Booking>>((ref) {
   ref.watch(bookingRevisionProvider);
-  final user = ref.watch(authUserProvider);
-  if (user == null) return [];
-  return MockDatabase.bookings
-      .where(
-        (booking) =>
-            booking.collaborators.any((item) => item.photographerId == user.id),
-      )
-      .toList();
+  return const [];
 });

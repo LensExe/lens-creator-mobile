@@ -68,8 +68,10 @@ class PhotographerPackage {
   final int price;
   final String description;
   final int photoCount;
+  final int retouchedPhotoCount;
   final double durationHours;
-  final int deliveryDays;
+  final List<String> features;
+  final bool isActive;
 
   PhotographerPackage({
     required this.id,
@@ -78,9 +80,13 @@ class PhotographerPackage {
     required this.price,
     this.description = '',
     this.photoCount = 20,
+    this.retouchedPhotoCount = 0,
     this.durationHours = 2,
-    this.deliveryDays = 7,
+    this.features = const [],
+    this.isActive = true,
   });
+
+  int get durationMinutes => (durationHours * 60).round();
 }
 
 enum BookingStatus {
@@ -90,6 +96,12 @@ enum BookingStatus {
   held,
   released,
   cancelled,
+  accepted,
+  rejected,
+  expired,
+  inProgress,
+  shot,
+  completed,
 }
 
 enum CollaborationStatus { invited, accepted, declined }

@@ -117,7 +117,7 @@ class MockDatabase {
           description: 'Chụp chân dung ngoài trời, ánh sáng tự nhiên.',
           photoCount: 15,
           durationHours: 1,
-          deliveryDays: 5,
+          retouchedPhotoCount: 10,
         ),
         PhotographerPackage(
           id: 'standard',
@@ -127,7 +127,7 @@ class MockDatabase {
           description: '2 bộ trang phục, 2 bối cảnh, hỗ trợ tạo dáng.',
           photoCount: 35,
           durationHours: 2,
-          deliveryDays: 7,
+          retouchedPhotoCount: 25,
         ),
         PhotographerPackage(
           id: 'premium',
@@ -137,7 +137,7 @@ class MockDatabase {
           description: 'Nửa ngày chụp gia đình, kèm 1 album in 20×30.',
           photoCount: 70,
           durationHours: 4,
-          deliveryDays: 10,
+          retouchedPhotoCount: 50,
         ),
       ],
     ),

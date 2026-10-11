@@ -56,7 +56,6 @@ class _CollaborationInvitesState extends ConsumerState<CollaborationInvites> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authUserProvider);
-    final photographers = ref.watch(photographersProvider);
     final invites = ref
         .watch(myCollaborationsProvider)
         .where(
@@ -174,12 +173,6 @@ class _CollaborationInvitesState extends ConsumerState<CollaborationInvites> {
                 final amount =
                     (BookingRules.payout(booking.price) * entry.sharePct / 100)
                         .round();
-                final inviter = photographers
-                    .where(
-                      (photographer) =>
-                          photographer.id == booking.photographerId,
-                    )
-                    .firstOrNull;
                 return CollaborationInviteCard(
                   booking: booking,
                   collaborator: entry,
@@ -187,7 +180,7 @@ class _CollaborationInvitesState extends ConsumerState<CollaborationInvites> {
                   busy: responding == booking.id,
                   subdued: widget.subdued,
                   compact: widget.compact,
-                  inviterAvatar: inviter?.avatar,
+                  inviterAvatar: null,
                   onAccept: () =>
                       _respond(booking, CollaborationStatus.accepted),
                   onDecline: () =>
