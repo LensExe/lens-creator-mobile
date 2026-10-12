@@ -166,21 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         child: ElevatedButton(
                           onPressed: () async {
                             Navigator.pop(dialogCtx);
-                            try {
-                              await ref
-                                  .read(authUserProvider.notifier)
-                                  .logout();
-                            } catch (error) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Đã đăng xuất trên thiết bị này, nhưng máy chủ chưa thể thu hồi phiên: $error',
-                                    ),
-                                  ),
-                                );
-                              }
-                            }
+                            await ref.read(authUserProvider.notifier).logout();
                             if (!mounted) return;
                             context.go('/login');
                           },
@@ -536,17 +522,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         Expanded(
                           child: InkWell(
                             onTap: () async {
-                              final current = DateTime.tryParse(birthday.text);
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: current ?? DateTime(1997, 8, 15),
-                                firstDate: DateTime(1940),
-                                lastDate: DateTime.now(),
-                              );
-                              if (picked != null) {
-                                final formatted =
-                                    '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                                setState(() => birthday.text = formatted);
+                              try {
+                                final current = DateTime.tryParse(birthday.text);
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: current ?? DateTime(1997, 8, 15),
+                                  firstDate: DateTime(1940),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (picked != null) {
+                                  final formatted =
+                                      '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                                  setState(() => birthday.text = formatted);
+                                }
+                              } catch (e) {
+                                debugPrint('Lỗi chọn ngày sinh: $e');
                               }
                             },
                             child: Padding(

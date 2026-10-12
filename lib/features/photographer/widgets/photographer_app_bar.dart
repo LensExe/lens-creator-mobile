@@ -18,11 +18,19 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     Photographer? profile;
+    User? user;
     try {
       profile = ref.watch(myPhotographerProvider);
     } catch (_) {
       profile = null;
     }
+    try {
+      user = ref.watch(authUserProvider);
+    } catch (_) {
+      user = null;
+    }
+    final displayName = profile?.name ?? user?.name ?? 'Creator';
+    final avatarUrl = profile?.avatar;
     return AppBar(
       toolbarHeight: preferredSize.height,
       backgroundColor: const Color(0xFFF8F8F9),
@@ -97,7 +105,7 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
             ],
           ),
-        if (profile != null)
+        if (user != null || profile != null)
           Padding(
             padding: const EdgeInsets.only(right: 16, left: 2),
             child: GestureDetector(
@@ -106,8 +114,8 @@ class PhotographerAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 clipBehavior: Clip.none,
                 children: [
                   CreatorAvatar(
-                    name: profile.name,
-                    imageUrl: profile.avatar,
+                    name: displayName,
+                    imageUrl: avatarUrl,
                     size: 32,
                   ),
                   Positioned(

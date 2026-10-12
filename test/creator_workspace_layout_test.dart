@@ -17,11 +17,16 @@ import 'package:lens_creator_mobile/features/photographer/packages/packages_scre
 import 'package:lens_creator_mobile/features/photographer/photographer_bookings_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/photographer_home_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/messages/chat_detail_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:lens_creator_mobile/features/photographer/messages/messages_list_screen.dart';
 import 'package:lens_creator_mobile/features/photographer/storage/storage_screen.dart';
 import 'package:lens_creator_mobile/providers/data_providers.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('vi_VN', null);
+  });
+
   testWidgets('workspace screens fit compact and large phone widths', (
     tester,
   ) async {

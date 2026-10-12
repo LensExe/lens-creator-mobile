@@ -63,19 +63,8 @@ class MoreBottomSheet extends ConsumerWidget {
             trailing: const SizedBox.shrink(),
             onTap: () async {
               final router = GoRouter.of(context);
-              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
-              try {
-                await ref.read(authUserProvider.notifier).logout();
-              } catch (error) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Đã đăng xuất trên thiết bị này, nhưng máy chủ chưa thể thu hồi phiên: $error',
-                    ),
-                  ),
-                );
-              }
+              await ref.read(authUserProvider.notifier).logout();
               router.go('/login');
             },
           ),

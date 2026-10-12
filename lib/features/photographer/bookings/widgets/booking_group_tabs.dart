@@ -28,20 +28,19 @@ class BookingGroupTabs extends StatelessWidget {
     ),
     child: SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          children: [
-            for (var index = 0; index < items.length; index++) ...[
-              _StatusTab(
-                item: items[index],
-                selected: index == selectedIndex,
-                onTap: () => onSelected(index),
-              ),
-              if (index < items.length - 1) const SizedBox(width: 4),
-            ],
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(0, 0, 16, 8),
+      child: Row(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            _StatusTab(
+              item: items[index],
+              selected: index == selectedIndex,
+              onTap: () => onSelected(index),
+            ),
+            if (index < items.length - 1) const SizedBox(width: 5),
           ],
-        ),
+        ],
       ),
     ),
   );

@@ -7,11 +7,24 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/vietnam_time.dart';
 import 'calendar_api_repository.dart';
 
-class AvailabilityScreen extends ConsumerWidget {
+class AvailabilityScreen extends ConsumerStatefulWidget {
   const AvailabilityScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AvailabilityScreen> createState() => _AvailabilityScreenState();
+}
+
+class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = VietnamTime.today();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final calendar = ref.watch(creatorCalendarProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FA),
@@ -40,10 +53,40 @@ class AvailabilityScreen extends ConsumerWidget {
                 children: [
                   const _CalendarContractNote(),
                   const SizedBox(height: 14),
+                  _WeekCalendarOverview(
+                    snapshot: snapshot,
+                    selectedDate: _selectedDate,
+                    onSelectDate: (date) =>
+                        setState(() => _selectedDate = date),
+                    onPreviousWeek: () => _moveWeek(-1),
+                    onNextWeek: () => _moveWeek(1),
+                    onPickDate: _pickCalendarDate,
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionTitle(
+                    title:
+                        'Lịch ngày ${DateFormat('d MMMM', 'vi_VN').format(_selectedDate)}',
+                    count: _entriesForSelectedDay(snapshot).length,
+                  ),
+                  const SizedBox(height: 8),
+                  if (_entriesForSelectedDay(snapshot).isEmpty)
+                    const _EmptyCalendarSection(
+                      message: 'Ngày này chưa có booking hoặc khoảng thời gian đã chặn.',
+                    )
+                  else
+                    for (final event in _entriesForSelectedDay(snapshot))
+                      _CalendarEntryCard(
+                        entry: event,
+                        onRemove: event.kind == 'blocked'
+                            ? () => _removeBlockedTime(context, ref, event)
+                            : null,
+                      ),
+                  const SizedBox(height: 14),
                   SizedBox(
                     height: 48,
                     child: FilledButton.icon(
-                      onPressed: () => _addBlockedTime(context, ref),
+                      onPressed: () =>
+                          _addBlockedTime(context, ref, _selectedDate),
                       icon: const Icon(Icons.event_busy_outlined),
                       label: const Text('Chặn thời gian'),
                       style: FilledButton.styleFrom(
@@ -53,13 +96,13 @@ class AvailabilityScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 22),
                   _SectionTitle(
-                    title: 'Booking trong lịch',
+                    title: 'Booking 60 ngày tới',
                     count: snapshot.bookings.length,
                   ),
                   const SizedBox(height: 8),
                   if (snapshot.bookings.isEmpty)
                     const _EmptyCalendarSection(
-                      message: 'Backend không có booking trong khoảng thời gian này.',
+                      message: 'Không có booking trong 60 ngày tới.',
                     )
                   else
                     for (final event in _sorted(snapshot.bookings))
@@ -95,10 +138,14 @@ class AvailabilityScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _addBlockedTime(BuildContext context, WidgetRef ref) async {
+  Future<void> _addBlockedTime(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime initialDate,
+  ) async {
     final draft = await showDialog<_BlockTimeDraft>(
       context: context,
-      builder: (_) => const _BlockTimeDialog(),
+      builder: (_) => _BlockTimeDialog(initialDate: initialDate),
     );
     if (draft == null || !context.mounted) return;
     final body = draft.toBody();
@@ -112,7 +159,7 @@ class AvailabilityScreen extends ConsumerWidget {
           builder: (dialogContext) => AlertDialog(
             title: const Text('Có yêu cầu booking bị ảnh hưởng'),
             content: Text(
-              'Backend tìm thấy ${affected.length} booking đang chờ chồng lên khoảng này. Nếu tiếp tục, các yêu cầu đó sẽ bị từ chối. Bạn có muốn tiếp tục?',
+              'Có ${affected.length} booking đang chờ trùng khoảng thời gian này. Nếu tiếp tục, các yêu cầu đó sẽ bị từ chối. Bạn có muốn tiếp tục?',
             ),
             actions: [
               TextButton(
@@ -132,9 +179,8 @@ class AvailabilityScreen extends ConsumerWidget {
       await repository.block(body);
       ref.invalidate(creatorCalendarProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backend đã xác nhận chặn lịch.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã chặn thời gian.')));
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,7 +198,7 @@ class AvailabilityScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Mở lại khoảng thời gian này?'),
-        content: const Text('Backend sẽ xoá blocked time đã chọn.'),
+        content: const Text('Khoảng thời gian này sẽ bị xoá khỏi lịch.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -170,13 +216,70 @@ class AvailabilityScreen extends ConsumerWidget {
       await ref.read(calendarApiRepositoryProvider).unblock(entry.id);
       ref.invalidate(creatorCalendarProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backend đã xác nhận mở lịch.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã mở lại lịch.')));
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Không thể mở lịch: $error')));
+    }
+  }
+
+  List<CalendarEntry> _entriesForSelectedDay(CalendarSnapshot snapshot) {
+    final dayStart = DateTime.utc(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    return [
+      ...snapshot.bookings.where(
+        (entry) =>
+            _appearsOnSchedule(entry.status) &&
+            entry.from.isBefore(dayEnd) &&
+            entry.to.isAfter(dayStart),
+      ),
+      ...snapshot.blocked.where(
+        (entry) => entry.from.isBefore(dayEnd) && entry.to.isAfter(dayStart),
+      ),
+    ]..sort((a, b) => a.from.compareTo(b.from));
+  }
+
+  void _moveWeek(int delta) {
+    final today = VietnamTime.today();
+    final lastDate = today.add(const Duration(days: 60));
+    final thisWeek = _startOfWeek(today);
+    final lastWeek = _startOfWeek(lastDate);
+    final targetWeek = _startOfWeek(_selectedDate)
+        .add(Duration(days: delta * 7));
+    if (targetWeek.isBefore(thisWeek) || targetWeek.isAfter(lastWeek)) return;
+
+    var target = targetWeek;
+    if (target.isBefore(today)) target = today;
+    if (target.isAfter(lastDate)) target = lastDate;
+    setState(() => _selectedDate = target);
+  }
+
+  Future<void> _pickCalendarDate() async {
+    final today = VietnamTime.today();
+    try {
+      final selected = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: today,
+        lastDate: today.add(const Duration(days: 60)),
+        locale: const Locale('vi', 'VN'),
+      );
+      if (selected == null || !mounted) return;
+      setState(
+        () => _selectedDate = DateTime.utc(
+          selected.year,
+          selected.month,
+          selected.day,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Lỗi chọn ngày: $e');
     }
   }
 }
@@ -196,10 +299,261 @@ class _CalendarContractNote extends StatelessWidget {
       border: Border.all(color: const Color(0xFFF0F0F2)),
     ),
     child: const Text(
-      'Lịch đang hiển thị booking và blocked time do Backend trả về trong 91 ngày tới. Backend hỗ trợ chặn cả ngày hoặc một khoảng giờ; lịch lặp hàng tuần và ô 30 phút không được hỗ trợ.',
+      'Theo dõi booking và khoảng thời gian đã đánh dấu bận trong 60 ngày tới. Lịch bận có thể áp dụng cho cả ngày hoặc một khoảng giờ cụ thể.',
       style: TextStyle(color: AppColors.steel, fontSize: 12, height: 1.45),
     ),
   );
+}
+
+class _WeekCalendarOverview extends StatelessWidget {
+  const _WeekCalendarOverview({
+    required this.snapshot,
+    required this.selectedDate,
+    required this.onSelectDate,
+    required this.onPreviousWeek,
+    required this.onNextWeek,
+    required this.onPickDate,
+  });
+
+  final CalendarSnapshot snapshot;
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onSelectDate;
+  final VoidCallback onPreviousWeek;
+  final VoidCallback onNextWeek;
+  final VoidCallback onPickDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = VietnamTime.today();
+    final lastDate = today.add(const Duration(days: 60));
+    final weekStart = _startOfWeek(selectedDate);
+    final firstWeek = _startOfWeek(today);
+    final lastWeek = _startOfWeek(lastDate);
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final weekLabel =
+        '${DateFormat('d MMM', 'vi_VN').format(weekStart)} – ${DateFormat('d MMM', 'vi_VN').format(weekEnd)}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.snow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE9E9ED)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_view_week_outlined,
+                color: AppColors.ember,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Lịch theo tuần',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: 'Tuần trước',
+                onPressed: weekStart.isAfter(firstWeek) ? onPreviousWeek : null,
+                icon: const Icon(Icons.chevron_left, size: 22),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: 'Tuần sau',
+                onPressed: weekStart.isBefore(lastWeek) ? onNextWeek : null,
+                icon: const Icon(Icons.chevron_right, size: 22),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            weekLabel,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.steel,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var index = 0; index < 7; index++) ...[
+                  if (index > 0) const SizedBox(width: 7),
+                  _WeekDayChip(
+                    date: weekStart.add(Duration(days: index)),
+                    today: today,
+                    lastDate: lastDate,
+                    selected: _sameDate(
+                      weekStart.add(Duration(days: index)),
+                      selectedDate,
+                    ),
+                    bookingCount: _countEventsOnDay(
+                      snapshot.bookings.where(
+                        (entry) => _appearsOnSchedule(entry.status),
+                      ),
+                      weekStart.add(Duration(days: index)),
+                    ),
+                    blockedCount: _countEventsOnDay(
+                      snapshot.blocked,
+                      weekStart.add(Duration(days: index)),
+                    ),
+                    onTap: onSelectDate,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton.icon(
+                onPressed: () => onSelectDate(today),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+                icon: const Icon(Icons.today_outlined, size: 16),
+                label: const Text('Hôm nay', style: TextStyle(fontSize: 12)),
+              ),
+              TextButton.icon(
+                onPressed: onPickDate,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+                icon: const Icon(Icons.edit_calendar_outlined, size: 16),
+                label: const Text('Chọn ngày', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekDayChip extends StatelessWidget {
+  const _WeekDayChip({
+    required this.date,
+    required this.today,
+    required this.lastDate,
+    required this.selected,
+    required this.bookingCount,
+    required this.blockedCount,
+    required this.onTap,
+  });
+
+  final DateTime date;
+  final DateTime today;
+  final DateTime lastDate;
+  final bool selected;
+  final int bookingCount;
+  final int blockedCount;
+  final ValueChanged<DateTime> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = !date.isBefore(today) && !date.isAfter(lastDate);
+    final summary = bookingCount > 0
+        ? '$bookingCount booking'
+        : blockedCount > 0
+        ? '$blockedCount bận'
+        : 'Trống';
+    return Material(
+      color: selected ? const Color(0xFFFFF0E8) : const Color(0xFFF7F7F9),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: enabled ? () => onTap(date) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 58,
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.ember : const Color(0xFFE9E9ED),
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                DateFormat('EEE', 'vi_VN').format(date),
+                style: TextStyle(
+                  color: enabled
+                      ? AppColors.steel
+                      : AppColors.steel.withValues(alpha: .5),
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                DateFormat('d', 'vi_VN').format(date),
+                style: TextStyle(
+                  color: selected ? AppColors.ember : Colors.black87,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                summary,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+                style: TextStyle(
+                  color: enabled
+                      ? AppColors.steel
+                      : AppColors.steel.withValues(alpha: .5),
+                  fontSize: 8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+DateTime _startOfWeek(DateTime date) {
+  final day = DateTime.utc(date.year, date.month, date.day);
+  return day.subtract(Duration(days: day.weekday - DateTime.monday));
+}
+
+bool _sameDate(DateTime left, DateTime right) =>
+    left.year == right.year &&
+    left.month == right.month &&
+    left.day == right.day;
+
+bool _appearsOnSchedule(String? status) => const {
+  'pending',
+  'accepted',
+  'in_progress',
+  'shot',
+  'completed',
+}.contains(status);
+
+int _countEventsOnDay(Iterable<CalendarEntry> entries, DateTime date) {
+  final start = DateTime.utc(date.year, date.month, date.day);
+  final end = start.add(const Duration(days: 1));
+  return entries
+      .where((entry) => entry.from.isBefore(end) && entry.to.isAfter(start))
+      .length;
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -303,13 +657,44 @@ class _CalendarError extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Không tải được lịch: $error',
-            textAlign: TextAlign.center,
-            maxLines: 5,
-            overflow: TextOverflow.ellipsis,
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEE2E2),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.cloud_off_rounded,
+              color: Color(0xFFDC2626),
+              size: 26,
+            ),
           ),
-          TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+          const SizedBox(height: 12),
+          const Text(
+            'Không thể tải lịch làm việc',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1A1C1D),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            error.contains('Exception') || error.contains('DioException')
+                ? 'Lỗi kết nối máy chủ hoặc phiên đã hết hạn. Vui lòng thử lại.'
+                : error,
+            textAlign: TextAlign.center,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF71717A)),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.tonalIcon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Tải lại'),
+          ),
         ],
       ),
     ),
@@ -346,7 +731,9 @@ class _BlockTimeDraft {
 }
 
 class _BlockTimeDialog extends StatefulWidget {
-  const _BlockTimeDialog();
+  const _BlockTimeDialog({required this.initialDate});
+
+  final DateTime initialDate;
 
   @override
   State<_BlockTimeDialog> createState() => _BlockTimeDialogState();
@@ -354,10 +741,16 @@ class _BlockTimeDialog extends StatefulWidget {
 
 class _BlockTimeDialogState extends State<_BlockTimeDialog> {
   final reasonController = TextEditingController();
-  DateTime selectedDate = VietnamTime.today().add(const Duration(days: 1));
+  late DateTime selectedDate;
   TimeOfDay start = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay end = const TimeOfDay(hour: 17, minute: 0);
   bool allDay = true;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = widget.initialDate;
+  }
 
   @override
   void dispose() {
@@ -387,16 +780,107 @@ class _BlockTimeDialogState extends State<_BlockTimeDialog> {
             onChanged: (value) => setState(() => allDay = value),
           ),
           if (!allDay) ...[
-            _TimePickerRow(
-              label: 'Từ',
-              value: start,
-              onPicked: (v) => setState(() => start = v),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F8FA),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Khoảng giờ chặn (chạm để gõ giờ):',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4B5563),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TimeInputCard(
+                          label: 'Bắt đầu',
+                          time: start,
+                          onTap: () => _pickTime(
+                            current: start,
+                            onPicked: (t) => setState(() => start = t),
+                            helpText: 'Nhập giờ bắt đầu',
+                          ),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 16,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                      Expanded(
+                        child: _TimeInputCard(
+                          label: 'Kết thúc',
+                          time: end,
+                          onTap: () => _pickTime(
+                            current: end,
+                            onPicked: (t) => setState(() => end = t),
+                            helpText: 'Nhập giờ kết thúc',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _QuickTimeChip(
+                          label: 'Sáng (08:00 - 12:00)',
+                          selected: start.hour == 8 &&
+                              start.minute == 0 &&
+                              end.hour == 12 &&
+                              end.minute == 0,
+                          onTap: () => setState(() {
+                            start = const TimeOfDay(hour: 8, minute: 0);
+                            end = const TimeOfDay(hour: 12, minute: 0);
+                          }),
+                        ),
+                        const SizedBox(width: 6),
+                        _QuickTimeChip(
+                          label: 'Chiều (13:00 - 17:00)',
+                          selected: start.hour == 13 &&
+                              start.minute == 0 &&
+                              end.hour == 17 &&
+                              end.minute == 0,
+                          onTap: () => setState(() {
+                            start = const TimeOfDay(hour: 13, minute: 0);
+                            end = const TimeOfDay(hour: 17, minute: 0);
+                          }),
+                        ),
+                        const SizedBox(width: 6),
+                        _QuickTimeChip(
+                          label: 'Tối (18:00 - 21:00)',
+                          selected: start.hour == 18 &&
+                              start.minute == 0 &&
+                              end.hour == 21 &&
+                              end.minute == 0,
+                          onTap: () => setState(() {
+                            start = const TimeOfDay(hour: 18, minute: 0);
+                            end = const TimeOfDay(hour: 21, minute: 0);
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            _TimePickerRow(
-              label: 'Đến',
-              value: end,
-              onPicked: (v) => setState(() => end = v),
-            ),
+            const SizedBox(height: 12),
           ],
           TextField(
             controller: reasonController,
@@ -419,14 +903,48 @@ class _BlockTimeDialogState extends State<_BlockTimeDialog> {
 
   Future<void> _pickDate() async {
     final today = VietnamTime.today();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: today,
-      lastDate: today.add(const Duration(days: 365)),
-      locale: const Locale('vi', 'VN'),
-    );
-    if (picked != null && mounted) setState(() => selectedDate = picked);
+    try {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: selectedDate,
+        firstDate: today,
+        lastDate: today.add(const Duration(days: 365)),
+        locale: const Locale('vi', 'VN'),
+      );
+      if (picked != null && mounted) setState(() => selectedDate = picked);
+    } catch (e) {
+      debugPrint('Lỗi chọn ngày: $e');
+    }
+  }
+
+  Future<void> _pickTime({
+    required TimeOfDay current,
+    required ValueChanged<TimeOfDay> onPicked,
+    required String helpText,
+  }) async {
+    try {
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: current,
+        initialEntryMode: TimePickerEntryMode.input,
+        helpText: helpText,
+        cancelText: 'Huỷ',
+        confirmText: 'Xong',
+        hourLabelText: 'Giờ (0-23)',
+        minuteLabelText: 'Phút (0-59)',
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+      );
+      if (picked != null && mounted) {
+        onPicked(picked);
+      }
+    } catch (e) {
+      debugPrint('Lỗi chọn giờ: $e');
+    }
   }
 
   void _submit() {
@@ -450,6 +968,118 @@ class _BlockTimeDialogState extends State<_BlockTimeDialog> {
   }
 }
 
+class _TimeInputCard extends StatelessWidget {
+  const _TimeInputCard({
+    required this.label,
+    required this.time,
+    required this.onTap,
+  });
+
+  final String label;
+  final TimeOfDay time;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final formatted =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFD1D5DB)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: Color(0xFF6B7280),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.access_time_rounded,
+                    size: 14,
+                    color: AppColors.ember,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    formatted,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1C1D),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.keyboard_outlined,
+                    size: 14,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickTimeChip extends StatelessWidget {
+  const _QuickTimeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xFFFFF0E8) : Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? AppColors.ember : const Color(0xFFE5E7EB),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? AppColors.ember : const Color(0xFF4B5563),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TimePickerRow extends StatelessWidget {
   const _TimePickerRow({
     required this.label,
@@ -466,13 +1096,29 @@ class _TimePickerRow extends StatelessWidget {
     title: Text(label),
     trailing: TextButton(
       onPressed: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: value,
-        );
-        if (picked != null) onPicked(picked);
+        try {
+          final picked = await showTimePicker(
+            context: context,
+            initialTime: value,
+            initialEntryMode: TimePickerEntryMode.input,
+            helpText: 'Nhập thời gian',
+            cancelText: 'Huỷ',
+            confirmText: 'Xong',
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
+          );
+          if (picked != null) onPicked(picked);
+        } catch (e) {
+          debugPrint('Lỗi chọn giờ: $e');
+        }
       },
-      child: Text(value.format(context)),
+      child: Text(
+        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}',
+      ),
     ),
   );
 }

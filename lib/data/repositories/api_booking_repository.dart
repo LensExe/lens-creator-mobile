@@ -193,17 +193,42 @@ Booking _booking(Map<String, dynamic> json) {
     ),
   };
   final durationMinutes = to.difference(from).inMinutes;
+  final rawCustomerName = _string(
+    json['customer_name'] ??
+        json['customerName'] ??
+        json['client_name'] ??
+        json['clientName'] ??
+        (json['customer'] is Map
+            ? json['customer']['fullname'] ?? json['customer']['name']
+            : null) ??
+        (json['user'] is Map
+            ? json['user']['fullname'] ?? json['user']['name']
+            : null),
+  ).trim();
+  final rawStyle = _string(json['style'] ?? json['photography_style']).trim();
+  final rawPackage = _string(
+    json['package_name'] ??
+        json['packageName'] ??
+        json['plan_name'] ??
+        (json['booking_plan'] is Map ? json['booking_plan']['name'] : null),
+  ).trim();
+  final rawPhone = _string(
+    json['contact_phone'] ?? json['phone_number'] ?? json['phone'],
+  ).trim();
+
   return Booking(
     id: _requiredString(json['id'], 'id'),
     clientId: _string(json['customer_id']),
-    clientName: 'Khách hàng',
+    clientName: rawCustomerName.isNotEmpty ? rawCustomerName : 'Khách hàng',
     photographerId: _requiredString(json['photographer_id'], 'photographer_id'),
     photographerName: 'Nhiếp ảnh gia',
-    style: 'Buổi chụp',
+    style: rawStyle.isNotEmpty ? rawStyle : 'Buổi chụp',
     date: DateFormat('yyyy-MM-dd').format(from),
     location: _string(json['location']),
     price: _integer(json['total_amount']),
     packageId: _string(json['booking_plan_id']),
+    packageName: rawPackage.isNotEmpty ? rawPackage : null,
+    contactPhone: rawPhone.isNotEmpty ? rawPhone : null,
     durationHours: durationMinutes > 0 ? durationMinutes / 60 : null,
     timeSlot: DateFormat('HH:mm').format(from),
     depositAmount: _integer(json['deposit_amount']),

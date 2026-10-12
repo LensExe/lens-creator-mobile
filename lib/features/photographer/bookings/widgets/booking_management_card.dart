@@ -95,13 +95,13 @@ class BookingManagementCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CreatorAvatar(name: booking.clientName, size: 40),
+                    CreatorAvatar(name: booking.displayClientName, size: 40),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 1),
                         child: Text(
-                          booking.clientName,
+                          booking.displayClientName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

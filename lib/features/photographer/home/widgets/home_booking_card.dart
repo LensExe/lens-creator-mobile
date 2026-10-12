@@ -93,14 +93,14 @@ class HomeBookingCard extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CreatorAvatar(name: booking.clientName, size: 40),
+            CreatorAvatar(name: booking.displayClientName, size: 40),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    booking.clientName,
+                    booking.displayClientName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -344,14 +344,14 @@ class HomeBookingCard extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CreatorAvatar(name: booking.clientName, size: 40),
+            CreatorAvatar(name: booking.displayClientName, size: 40),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    booking.clientName,
+                    booking.displayClientName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

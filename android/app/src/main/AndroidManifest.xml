@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="lens_app"
+        android:label="LENS Creator"
         android:name="${applicationName}"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"

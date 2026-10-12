@@ -78,7 +78,7 @@ class CreatorBookingTile extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CreatorAvatar(name: booking.clientName, size: 44),
+                    CreatorAvatar(name: booking.displayClientName, size: 44),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Padding(
@@ -87,7 +87,7 @@ class CreatorBookingTile extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              booking.clientName,
+                              booking.displayClientName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(

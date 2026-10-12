@@ -205,6 +205,18 @@ class Booking {
     collaborators: collaborators ?? this.collaborators,
     status: status ?? this.status,
   );
+
+  String get displayClientName {
+    final trimmed = clientName.trim();
+    if (trimmed.isNotEmpty && trimmed != 'Khách hàng') {
+      return trimmed;
+    }
+    if (id.length >= 4) {
+      final code = id.substring(id.length - 4).toUpperCase();
+      return 'Khách hàng #$code';
+    }
+    return 'Khách hàng';
+  }
 }
 
 class User {

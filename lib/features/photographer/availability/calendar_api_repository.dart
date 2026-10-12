@@ -58,7 +58,13 @@ class CalendarApiRepository {
     try {
       final response = await _dio.get<dynamic>(
         'calendar/blocked-times/affected',
-        queryParameters: body,
+        // The preview endpoint accepts only the blocked range. `reason` is
+        // accepted by POST /blocked-times, but sending it here fails DTO
+        // validation when the photographer enters a note.
+        queryParameters: {
+          for (final key in const ['date', 'from', 'to'])
+            if (body.containsKey(key)) key: body[key],
+        },
       );
       final json = _unwrap(response.data);
       final items = json is List
@@ -126,7 +132,7 @@ final creatorCalendarProvider = FutureProvider.autoDispose<CalendarSnapshot>((
   final today = VietnamTime.today();
   return ref
       .read(calendarApiRepositoryProvider)
-      .getRange(today, today.add(const Duration(days: 91)));
+      .getRange(today, today.add(const Duration(days: 60)));
 });
 
 String calendarIsoWithOffset(DateTime value) => VietnamTime.toApiIso(value);

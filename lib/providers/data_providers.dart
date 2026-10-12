@@ -84,6 +84,8 @@ class AuthUserNotifier extends Notifier<User?> {
   Future<void> logout() async {
     try {
       await ref.read(authRepositoryProvider).logout();
+    } catch (_) {
+      // Remote logout failures should never block local sign-out.
     } finally {
       setUser(null);
     }

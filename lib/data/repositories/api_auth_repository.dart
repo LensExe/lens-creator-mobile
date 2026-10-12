@@ -54,10 +54,12 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<User> login(String email, String password) async {
+    // AUTH-009's published response omits user.role. The following
+    // photographers/me request still verifies role and approval status.
     final user = await _authenticate('auth/login', {
       'email': email.trim(),
       'password': password,
-    });
+    }, fallbackRole: 'photographer');
     late final String status;
     try {
       final response = await _dio.get<dynamic>('photographers/me');
@@ -204,13 +206,19 @@ class ApiAuthRepository implements AuthRepository {
     final refreshToken = _sessionStore.refreshToken;
     try {
       if (refreshToken != null && refreshToken.isNotEmpty) {
-        await _dio.post<dynamic>(
-          'auth/logout',
-          data: {'refresh_token': refreshToken},
-        );
+        await _dio
+            .post<dynamic>(
+              'auth/logout',
+              data: {'refresh_token': refreshToken},
+              options: Options(
+                sendTimeout: const Duration(seconds: 3),
+                receiveTimeout: const Duration(seconds: 3),
+              ),
+            )
+            .timeout(const Duration(seconds: 3));
       }
-    } on DioException catch (error) {
-      throw ApiException.fromDio(error);
+    } catch (_) {
+      // Best-effort remote revocation. Local logout always clears device storage.
     } finally {
       await _sessionStore.clear();
     }
@@ -242,7 +250,7 @@ class ApiAuthRepository implements AuthRepository {
   }) async {
     try {
       final response = await _dio.post<dynamic>(path, data: body);
-      final data = _asMap(response.data);
+      final data = _asMap(_unwrap(response.data));
       final session = AuthSessionData.fromApiJson(
         data,
         fallbackRole: fallbackRole,

@@ -51,13 +51,28 @@ class ApiException implements Exception {
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
       return ApiException(
-        'Kết nối đến máy chủ quá thời gian. Vui lòng thử lại.',
+        'Kết nối đến máy chủ ${error.requestOptions.uri.host} quá thời gian. Vui lòng kiểm tra mạng và thử lại.',
+        statusCode: statusCode,
+      );
+    }
+    if (error.type == DioExceptionType.badCertificate) {
+      return ApiException(
+        'Không xác thực được chứng chỉ bảo mật của máy chủ ${error.requestOptions.uri.host}. Hãy cập nhật ứng dụng hoặc liên hệ hỗ trợ.',
         statusCode: statusCode,
       );
     }
     if (error.type == DioExceptionType.connectionError) {
+      final cause = error.error?.toString().toLowerCase() ?? '';
+      if (cause.contains('failed host lookup') ||
+          cause.contains('name or service not known') ||
+          cause.contains('nodename nor servname')) {
+        return ApiException(
+          'Không tìm thấy địa chỉ máy chủ ${error.requestOptions.uri.host}. Hãy kiểm tra DNS hoặc kết nối mạng của thiết bị.',
+          statusCode: statusCode,
+        );
+      }
       return ApiException(
-        'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc đảm bảo backend đang hoạt động.',
+        'Không thể kết nối đến máy chủ ${error.requestOptions.uri.host}. Vui lòng kiểm tra mạng của thiết bị và thử lại.',
         statusCode: statusCode,
       );
     }

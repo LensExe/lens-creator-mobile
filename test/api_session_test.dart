@@ -13,6 +13,13 @@ const _baseUrl = 'https://api.example.test/v1/';
 
 void main() {
   group('API runtime configuration', () {
+    test('uses the deployed API origin by default', () {
+      expect(
+        const ApiConfig().requireBaseUrl(),
+        'https://api.lens.id.vn/api/v1/',
+      );
+    });
+
     test('preserves a configured API prefix and appends a trailing slash', () {
       expect(
         ApiConfig(baseUrl: 'https://api.example.test/v1').requireBaseUrl(),
@@ -36,6 +43,22 @@ void main() {
         throwsA(isA<ApiConfigurationException>()),
       );
     });
+  });
+
+  test('explains when the configured API host cannot be resolved', () {
+    final error = DioException(
+      requestOptions: RequestOptions(
+        baseUrl: 'https://api.lens.id.vn/api/v1/',
+        path: 'auth/login',
+      ),
+      type: DioExceptionType.connectionError,
+      error: 'Failed host lookup: api.lens.id.vn',
+    );
+
+    expect(
+      ApiException.fromDio(error).message,
+      contains('Không tìm thấy địa chỉ máy chủ api.lens.id.vn'),
+    );
   });
 
   test('restores and deletes the persisted photographer session', () async {
@@ -151,7 +174,9 @@ void main() {
       dio.httpClientAdapter = _Adapter((request) async {
         switch (request.uri.path) {
           case '/v1/auth/login':
-            return _response(200, _authResponse());
+            final authResponse = _authResponse();
+            (authResponse['user'] as Map<String, Object?>).remove('role');
+            return _response(200, {'success': true, 'data': authResponse});
           case '/v1/photographers/me':
             expect(request.headers['Authorization'], 'Bearer access-1');
             return _response(200, {

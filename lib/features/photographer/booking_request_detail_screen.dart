@@ -378,7 +378,7 @@ class _BookingHeroCard extends StatelessWidget {
                   border: Border.all(color: const Color(0xFFFFDBCF), width: 2),
                 ),
                 child: ClipOval(
-                  child: CreatorAvatar(name: booking.clientName, size: 48),
+                  child: CreatorAvatar(name: booking.displayClientName, size: 48),
                 ),
               ),
               const SizedBox(width: 10),
@@ -387,7 +387,7 @@ class _BookingHeroCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      booking.clientName,
+                      booking.displayClientName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

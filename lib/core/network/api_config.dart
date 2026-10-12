@@ -1,12 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ApiConfig {
-  const ApiConfig({String? baseUrl})
-    : _baseUrl = baseUrl ?? _defaultBaseUrl;
+  const ApiConfig({String? baseUrl}) : _baseUrl = baseUrl ?? _defaultBaseUrl;
 
   static const String _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.lens.id.vn',
+    defaultValue: 'https://api.lens.id.vn/api/v1',
   );
 
   final String _baseUrl;
